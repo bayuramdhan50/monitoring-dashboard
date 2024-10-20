@@ -4,6 +4,12 @@ import DataCard from "../components/DataCard";
 import LineChart from "../components/LineChart";
 import PieChart from "../components/PieChart";
 import GaugeChart from "react-gauge-chart";
+// import MapComponent from "../components/MapComponent";
+import dynamic from "next/dynamic";
+
+const MapComponent = dynamic(() => import("../components/MapComponent"), {
+  ssr: false, // Nonaktifkan server-side rendering untuk komponen ini
+});
 
 export default function Page() {
   const [latestData, setLatestData] = useState({});
@@ -105,6 +111,14 @@ export default function Page() {
       <h1 className="text-4xl text-white font-bold text-center mb-8">
         Monitoring Dashboard
       </h1>
+      {/* Status Koneksi ESP32 */}
+      <div className="text-center text-white mb-4">
+        {latestData.espConnected ? (
+          <span className="text-green-500">ESP Connected</span>
+        ) : (
+          <span className="text-red-500">ESP Not Connected</span>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {latestData && (
@@ -114,12 +128,58 @@ export default function Page() {
               value={latestData.soilMoisture || 0}
               unit="%"
             />
+            <DataCard
+              title="Gas Level"
+              value={
+                latestData.gasLevel < 51
+                  ? "Aman"
+                  : latestData.gasLevel < 101
+                  ? "Perhatian"
+                  : latestData.gasLevel < 301
+                  ? "Berbahaya"
+                  : "Sangat Berbahaya"
+              }
+              unit=""
+            />
 
+            <DataCard
+              title="pH Level"
+              value={
+                latestData.ph < 6
+                  ? "Terlalu Asam"
+                  : latestData.ph < 6.5
+                  ? "Asam"
+                  : latestData.ph <= 7.5
+                  ? "Normal"
+                  : latestData.ph <= 8.5
+                  ? "Basa"
+                  : "Sangat Basa"
+              }
+              unit=""
+            />
+
+            <DataCard
+              title="Water Pump"
+              value={latestData.waterPumpStatus || "N/A"}
+            />
+
+            <DataCard
+              title="Ultrasonic Distance"
+              value={latestData.ultrasonicDistance || 0}
+              unit="cm"
+            />
+
+            <DataCard
+              title="GPS"
+              value={`Lat: ${latestData.latitude || 0}, Lon: ${
+                latestData.longitude || 0
+              }`}
+            />
             <DataCard
               title="Temperature"
               value={
                 <div className="flex justify-between items-center overflow-hidden">
-                  <span>{latestData.temperature || 0}°C</span>
+                  <span>{(latestData.temperature || 0).toFixed(2)}°C</span>
                   <div className="ml-4 w-28 h-28">
                     <GaugeChart
                       id="temperature-gauge"
@@ -132,12 +192,6 @@ export default function Page() {
                   </div>
                 </div>
               }
-            />
-
-            <DataCard
-              title="Weather"
-              value={latestData.weather || "N/A"}
-              unit=""
             />
           </>
         )}
@@ -164,17 +218,17 @@ export default function Page() {
           </div>
           <LineChart labels={chartData.labels} dataSets={chartData} />
         </div>
+      </div>
 
-        <div className="w-full lg:w-1/2">
-          <h2 className="text-2xl text-white font-bold text-center mb-4">
-            Weather Distribution
-          </h2>
-          <PieChart
-            data={[weatherData.Clear, weatherData.Rain, weatherData.Cloudy]}
-            labels={["Clear", "Rain", "Cloudy"]}
+      {latestData.latitude && latestData.longitude && (
+        <div className="mt-8">
+          <h2 className="text-2xl text-white font-bold mb-4">Location Map</h2>
+          <MapComponent
+            latitude={latestData.latitude}
+            longitude={latestData.longitude}
           />
         </div>
-      </div>
+      )}
     </div>
   );
 }
