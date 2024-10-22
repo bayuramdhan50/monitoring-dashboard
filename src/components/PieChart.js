@@ -1,33 +1,19 @@
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+// components/PieChart.js
+import React from "react";
 import { Pie } from "react-chartjs-2";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-export default function PieChart({ data, labels }) {
-  const chartData = {
-    labels: labels,
-    datasets: [
-      {
-        data: data,
-        backgroundColor: ["#4CAF50", "#2196F3", "#FF9800"],
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  const options = {
-    maintainAspectRatio: false, // Agar ukurannya bisa disesuaikan secara custom
-    plugins: {
-      legend: {
-        position: "bottom", // Tempatkan legend di bawah chart
-      },
-    },
-  };
-
+const PieChart = ({ data }) => {
   return (
-    <div className="w-full h-96">
-      {" "}
-      {/* Wrapper untuk ukuran */}
-      <Pie data={chartData} options={options} />
+    <div className="bg-gray-800 p-4 rounded-lg">
+      <Pie
+        data={data}
+        options={{ responsive: true, maintainAspectRatio: false }}
+      />
     </div>
   );
-}
+};
+
+export default PieChart;

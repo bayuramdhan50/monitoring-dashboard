@@ -3,24 +3,13 @@ import { useEffect, useState } from "react";
 import DataCard from "../components/DataCard";
 import LineChart from "../components/LineChart";
 import PieChart from "../components/PieChart";
-import GaugeChart from "react-gauge-chart";
-import dynamic from "next/dynamic";
-
-const MapComponent = dynamic(() => import("../components/MapComponent"), {
-  ssr: false,
-});
 
 export default function Page() {
   const [latestData, setLatestData] = useState({});
   const [chartData, setChartData] = useState({
-    soilMoisture: [],
+    humidity: [],
     temperature: [],
     labels: [],
-  });
-  const [weatherData, setWeatherData] = useState({
-    Clear: 0,
-    Rain: 0,
-    Cloudy: 0,
   });
   const [filter, setFilter] = useState("all");
   const [originalData, setOriginalData] = useState([]);
@@ -28,54 +17,40 @@ export default function Page() {
   const fetchData = async () => {
     try {
       const response = await fetch(
-        "https://rc-research-mining-dtja4f15j-bayuramdhan50-gmailcoms-projects.vercel.app/api/sensordata/all"
+        "https://flutter-iot-app-44a88-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_data.json"
       );
       const jsonResponse = await response.json();
+      console.log(jsonResponse); // Cek data di console
 
-      // Assuming the data is in the "data" field of the JSON
-      const dataEntries = jsonResponse.data;
-
-      if (dataEntries && dataEntries.length > 0) {
-        // Update latestData to the most recent entry
-        const sortedData = dataEntries.sort(
-          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
-        );
-        setLatestData(sortedData[0]); // Set the latest data
-        setOriginalData(dataEntries); // Save original data
-      }
+      // Gunakan jsonResponse langsung, karena itu adalah objek
+      setLatestData(jsonResponse); // Set the latest data
+      setOriginalData([jsonResponse]); // Simpan sebagai array dengan satu elemen
+      filterDataByTime("all"); // Set filter to "all" after fetching data
     } catch (error) {
       console.error("Failed to fetch data:", error);
     }
   };
 
   const updateChartData = (data) => {
-    const sortedData = data.sort(
-      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-    );
+    // Jika data tidak kosong, kita akan mengupdate chartData
+    if (data.length > 0) {
+      const sortedData = data.sort(
+        (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+      );
 
-    setChartData({
-      soilMoisture: sortedData.map((item) => item.soilmoisture),
-      temperature: sortedData.map((item) => item.temperature),
-      labels: sortedData.map((item) => item.timestamp),
-    });
-  };
+      // Ekstrak humidity dan temperature dari sortedData
+      const humidityData = sortedData.map((item) => item.humidity || 0);
+      const temperatureData = sortedData.map((item) => item.temperature || 0);
+      const labelsData = sortedData.map((item) =>
+        new Date(item.timestamp).toISOString()
+      );
 
-  const updateWeatherData = (data) => {
-    const weatherCount = { Clear: 0, Rain: 0, Cloudy: 0 };
-
-    data.forEach((entry) => {
-      let normalizedWeather = entry.weather ? entry.weather.toLowerCase() : "";
-
-      if (normalizedWeather.includes("clear")) {
-        weatherCount.Clear += 1;
-      } else if (normalizedWeather.includes("rain")) {
-        weatherCount.Rain += 1;
-      } else if (normalizedWeather.includes("cloud")) {
-        weatherCount.Cloudy += 1;
-      }
-    });
-
-    setWeatherData(weatherCount);
+      setChartData({
+        humidity: humidityData,
+        temperature: temperatureData,
+        labels: labelsData,
+      });
+    }
   };
 
   const filterDataByTime = (filter) => {
@@ -97,7 +72,6 @@ export default function Page() {
     }
 
     updateChartData(filteredData);
-    updateWeatherData(filteredData);
   };
 
   useEffect(() => {
@@ -111,9 +85,8 @@ export default function Page() {
       <h1 className="text-4xl text-white font-bold text-center mb-8">
         Monitoring Dashboard
       </h1>
-      {/* Status Koneksi ESP32 */}
       <div className="text-center text-white mb-4">
-        {latestData.espconnected ? (
+        {latestData.infrared ? (
           <span className="text-green-500">ESP Connected</span>
         ) : (
           <span className="text-red-500">ESP Not Connected</span>
@@ -124,21 +97,16 @@ export default function Page() {
         {latestData && (
           <>
             <DataCard
-              title="Soil Moisture"
-              value={latestData.soilmoisture || 0}
-              unit="%"
+              title="Temperature"
+              value={Number(latestData.temperature || 0).toFixed(2) + "°C"}
+              valueType="gauge"
+              gaugeValue={Number(latestData.temperature || 0) / 100}
+              gaugeColors={["#00FF00", "#FFFF00", "#FF0000"]}
             />
             <DataCard
-              title="Gas Level"
-              value={
-                latestData.gaslevel < 51
-                  ? "Aman"
-                  : latestData.gaslevel < 101
-                  ? "Perhatian"
-                  : latestData.gaslevel < 301
-                  ? "Berbahaya"
-                  : "Sangat Berbahaya"
-              }
+              title="Humidity"
+              value={latestData.humidity || 0}
+              unit="%"
             />
             <DataCard
               title="pH Level"
@@ -155,43 +123,36 @@ export default function Page() {
               }
             />
             <DataCard
-              title="Water Pump"
-              value={latestData.waterpumpstatus ? "On" : "Off"}
-            />
-            <DataCard
-              title="Ultrasonic Distance"
-              value={latestData.ultrasonicdistance || 0}
-              unit="cm"
-            />
-            <DataCard
-              title="GPS"
-              value={`Lat: ${latestData.latitude || 0}, Lon: ${
-                latestData.longitude || 0
-              }`}
-            />
-            <DataCard
-              title="Temperature"
+              title="Gas Level"
               value={
-                <div className="flex justify-between items-center overflow-hidden">
-                  <span>
-                    {Number(latestData.temperature || 0).toFixed(2)}°C
-                  </span>
-                  <div className="ml-4 w-28 h-28">
-                    <GaugeChart
-                      id="temperature-gauge"
-                      nrOfLevels={30}
-                      percent={Number(latestData.temperature || 0) / 100}
-                      colors={["#00FF00", "#FFFF00", "#FF0000"]}
-                      arcWidth={0.2}
-                      textColor="#FFFFFF"
-                    />
-                  </div>
-                </div>
+                latestData.gas < 51
+                  ? "Aman"
+                  : latestData.gas < 101
+                  ? "Perhatian"
+                  : latestData.gas < 301
+                  ? "Berbahaya"
+                  : "Sangat Berbahaya"
               }
             />
             <DataCard
+              title="Buzzer Status"
+              value={
+                latestData.temperature >= 30 ? "Buzzer Menyala" : "Buzzer Mati"
+              }
+              unit=""
+            />
+            <DataCard
+              title="Getaran Status"
+              value={
+                latestData.getaran >= 1 ? "Ada Getaran" : "Tidak Ada Getaran"
+              }
+              unit=""
+            />
+            <DataCard
               title="Infrared Status"
-              value={latestData.infraredstatus ? "Active" : "Inactive"}
+              value={
+                latestData.infrared ? "1 (Ada Benda)" : "0 (Tidak Ada Benda)"
+              }
             />
           </>
         )}
@@ -205,9 +166,8 @@ export default function Page() {
               className="bg-gray-800 text-white p-2 rounded"
               value={filter}
               onChange={(e) => {
-                const newFilter = e.target.value;
-                setFilter(newFilter); // Keep the current filter state
-                filterDataByTime(newFilter); // Update the chart data based on the new filter
+                setFilter(e.target.value);
+                filterDataByTime(e.target.value);
               }}
             >
               <option value="all">All Time</option>
@@ -218,17 +178,28 @@ export default function Page() {
           </div>
           <LineChart labels={chartData.labels} dataSets={chartData} />
         </div>
-      </div>
-
-      {latestData.latitude && latestData.longitude && (
-        <div className="mt-8">
-          <h2 className="text-2xl text-white font-bold mb-4">Location Map</h2>
-          <MapComponent
-            latitude={latestData.latitude}
-            longitude={latestData.longitude}
+        <div className="w-full lg:w-1/2">
+          <h2 className="text-2xl text-white font-bold mb-4">
+            Gas Level Distribution
+          </h2>
+          <PieChart
+            data={{
+              labels: ["Aman", "Perhatian", "Berbahaya", "Sangat Berbahaya"],
+              datasets: [
+                {
+                  data: [
+                    latestData.infrared < 1 ? 1 : 0, // Aman
+                    latestData.infrared < 2 && latestData.infrared >= 1 ? 1 : 0, // Perhatian
+                    latestData.infrared < 3 && latestData.infrared >= 2 ? 1 : 0, // Berbahaya
+                    latestData.infrared >= 3 ? 1 : 0, // Sangat Berbahaya
+                  ],
+                  backgroundColor: ["#00FF00", "#FFFF00", "#FF0000", "#FF0000"],
+                },
+              ],
+            }}
           />
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -25,8 +25,8 @@ const LineChart = ({ labels, dataSets }) => {
     labels: labels,
     datasets: [
       {
-        label: "Soil Moisture",
-        data: dataSets.soilMoisture,
+        label: "Humidity",
+        data: dataSets.humaidity,
         borderColor: "rgba(75, 192, 192, 1)",
         backgroundColor: "rgba(75, 192, 192, 0.2)",
         fill: true,
