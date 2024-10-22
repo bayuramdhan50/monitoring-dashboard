@@ -4,11 +4,10 @@ import DataCard from "../components/DataCard";
 import LineChart from "../components/LineChart";
 import PieChart from "../components/PieChart";
 import GaugeChart from "react-gauge-chart";
-// import MapComponent from "../components/MapComponent";
 import dynamic from "next/dynamic";
 
 const MapComponent = dynamic(() => import("../components/MapComponent"), {
-  ssr: false, // Nonaktifkan server-side rendering untuk komponen ini
+  ssr: false,
 });
 
 export default function Page() {
@@ -28,20 +27,21 @@ export default function Page() {
 
   const fetchData = async () => {
     try {
-      const response = await fetch("http://localhost:3001/api/sensordata/all");
+      const response = await fetch(
+        "https://rc-research-mining-dtja4f15j-bayuramdhan50-gmailcoms-projects.vercel.app/api/sensordata/all"
+      );
       const jsonResponse = await response.json();
-      const data = jsonResponse.data;
 
-      if (data.length > 0) {
-        setOriginalData(data);
+      // Assuming the data is in the "data" field of the JSON
+      const dataEntries = jsonResponse.data;
 
-        const newestData = data.reduce((prev, current) =>
-          prev.id > current.id ? prev : current
+      if (dataEntries && dataEntries.length > 0) {
+        // Update latestData to the most recent entry
+        const sortedData = dataEntries.sort(
+          (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
         );
-
-        setLatestData(newestData);
-        updateChartData(data);
-        updateWeatherData(data);
+        setLatestData(sortedData[0]); // Set the latest data
+        setOriginalData(dataEntries); // Save original data
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -54,7 +54,7 @@ export default function Page() {
     );
 
     setChartData({
-      soilMoisture: sortedData.map((item) => item.soilMoisture),
+      soilMoisture: sortedData.map((item) => item.soilmoisture),
       temperature: sortedData.map((item) => item.temperature),
       labels: sortedData.map((item) => item.timestamp),
     });
@@ -64,7 +64,7 @@ export default function Page() {
     const weatherCount = { Clear: 0, Rain: 0, Cloudy: 0 };
 
     data.forEach((entry) => {
-      let normalizedWeather = entry.weather.toLowerCase();
+      let normalizedWeather = entry.weather ? entry.weather.toLowerCase() : "";
 
       if (normalizedWeather.includes("clear")) {
         weatherCount.Clear += 1;
@@ -113,7 +113,7 @@ export default function Page() {
       </h1>
       {/* Status Koneksi ESP32 */}
       <div className="text-center text-white mb-4">
-        {latestData.espConnected ? (
+        {latestData.espconnected ? (
           <span className="text-green-500">ESP Connected</span>
         ) : (
           <span className="text-red-500">ESP Not Connected</span>
@@ -125,23 +125,21 @@ export default function Page() {
           <>
             <DataCard
               title="Soil Moisture"
-              value={latestData.soilMoisture || 0}
+              value={latestData.soilmoisture || 0}
               unit="%"
             />
             <DataCard
               title="Gas Level"
               value={
-                latestData.gasLevel < 51
+                latestData.gaslevel < 51
                   ? "Aman"
-                  : latestData.gasLevel < 101
+                  : latestData.gaslevel < 101
                   ? "Perhatian"
-                  : latestData.gasLevel < 301
+                  : latestData.gaslevel < 301
                   ? "Berbahaya"
                   : "Sangat Berbahaya"
               }
-              unit=""
             />
-
             <DataCard
               title="pH Level"
               value={
@@ -155,20 +153,16 @@ export default function Page() {
                   ? "Basa"
                   : "Sangat Basa"
               }
-              unit=""
             />
-
             <DataCard
               title="Water Pump"
-              value={latestData.waterPumpStatus || "N/A"}
+              value={latestData.waterpumpstatus ? "On" : "Off"}
             />
-
             <DataCard
               title="Ultrasonic Distance"
-              value={latestData.ultrasonicDistance || 0}
+              value={latestData.ultrasonicdistance || 0}
               unit="cm"
             />
-
             <DataCard
               title="GPS"
               value={`Lat: ${latestData.latitude || 0}, Lon: ${
@@ -179,12 +173,14 @@ export default function Page() {
               title="Temperature"
               value={
                 <div className="flex justify-between items-center overflow-hidden">
-                  <span>{(latestData.temperature || 0).toFixed(2)}°C</span>
+                  <span>
+                    {Number(latestData.temperature || 0).toFixed(2)}°C
+                  </span>
                   <div className="ml-4 w-28 h-28">
                     <GaugeChart
                       id="temperature-gauge"
                       nrOfLevels={30}
-                      percent={(latestData.temperature || 0) / 100}
+                      percent={Number(latestData.temperature || 0) / 100}
                       colors={["#00FF00", "#FFFF00", "#FF0000"]}
                       arcWidth={0.2}
                       textColor="#FFFFFF"
@@ -192,6 +188,10 @@ export default function Page() {
                   </div>
                 </div>
               }
+            />
+            <DataCard
+              title="Infrared Status"
+              value={latestData.infraredstatus ? "Active" : "Inactive"}
             />
           </>
         )}
