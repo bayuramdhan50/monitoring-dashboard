@@ -150,9 +150,7 @@ export default function Page() {
             />
             <DataCard
               title="Infrared Status"
-              value={
-                latestData.infrared ? "1 (Ada Benda)" : "0 (Tidak Ada Benda)"
-              }
+              value={latestData.infrared ? "Ada Benda" : "Tidak Ada Benda"}
             />
           </>
         )}
