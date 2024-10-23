@@ -17,7 +17,7 @@ export default function Page() {
   const fetchData = async () => {
     try {
       const response = await fetch(
-        "http://localhost:3001/api/sensordata/allhttps://rc-research-mining-2m5gou6iy-bayuramdhan50-gmailcoms-projects.vercel.app/api/sensordata/all"
+        "https://rc-research-mining-2m5gou6iy-bayuramdhan50-gmailcoms-projects.vercel.app/api/sensordata/all"
       );
       const jsonResponse = await response.json();
       console.log(jsonResponse); // Cek data di console
