@@ -17,28 +17,28 @@ export default function Page() {
   const fetchData = async () => {
     try {
       const response = await fetch(
-        "https://flutter-iot-app-44a88-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_data.json"
+        "http://localhost:3001/api/sensordata/allhttps://rc-research-mining-2m5gou6iy-bayuramdhan50-gmailcoms-projects.vercel.app/api/sensordata/all"
       );
       const jsonResponse = await response.json();
       console.log(jsonResponse); // Cek data di console
 
-      // Gunakan jsonResponse langsung, karena itu adalah objek
-      setLatestData(jsonResponse); // Set the latest data
-      setOriginalData([jsonResponse]); // Simpan sebagai array dengan satu elemen
-      filterDataByTime("all"); // Set filter to "all" after fetching data
+      const dataArray = jsonResponse.data || [];
+      if (dataArray.length > 0) {
+        setLatestData(dataArray[0]); // Ambil data terbaru
+        setOriginalData(dataArray); // Simpan semua data
+        filterDataByTime("all"); // Set filter ke "all"
+      }
     } catch (error) {
       console.error("Failed to fetch data:", error);
     }
   };
 
   const updateChartData = (data) => {
-    // Jika data tidak kosong, kita akan mengupdate chartData
     if (data.length > 0) {
       const sortedData = data.sort(
         (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
       );
 
-      // Ekstrak humidity dan temperature dari sortedData
       const humidityData = sortedData.map((item) => item.humidity || 0);
       const temperatureData = sortedData.map((item) => item.temperature || 0);
       const labelsData = sortedData.map((item) =>
@@ -86,7 +86,7 @@ export default function Page() {
         Monitoring Dashboard
       </h1>
       <div className="text-center text-white mb-4">
-        {latestData.infrared ? (
+        {latestData.espconnected ? (
           <span className="text-green-500">ESP Connected</span>
         ) : (
           <span className="text-red-500">ESP Not Connected</span>
@@ -135,18 +135,8 @@ export default function Page() {
               }
             />
             <DataCard
-              title="Buzzer Status"
-              value={
-                latestData.temperature >= 30 ? "Buzzer Menyala" : "Buzzer Mati"
-              }
-              unit=""
-            />
-            <DataCard
               title="Getaran Status"
-              value={
-                latestData.getaran >= 1 ? "Ada Getaran" : "Tidak Ada Getaran"
-              }
-              unit=""
+              value={latestData.getaran ? "Ada Getaran" : "Tidak Ada Getaran"}
             />
             <DataCard
               title="Infrared Status"
@@ -186,10 +176,10 @@ export default function Page() {
               datasets: [
                 {
                   data: [
-                    latestData.infrared < 1 ? 1 : 0, // Aman
-                    latestData.infrared < 2 && latestData.infrared >= 1 ? 1 : 0, // Perhatian
-                    latestData.infrared < 3 && latestData.infrared >= 2 ? 1 : 0, // Berbahaya
-                    latestData.infrared >= 3 ? 1 : 0, // Sangat Berbahaya
+                    latestData.gas < 51 ? 1 : 0,
+                    latestData.gas < 101 && latestData.gas >= 51 ? 1 : 0,
+                    latestData.gas < 301 && latestData.gas >= 101 ? 1 : 0,
+                    latestData.gas >= 301 ? 1 : 0,
                   ],
                   backgroundColor: ["#00FF00", "#FFFF00", "#FF0000", "#FF0000"],
                 },
