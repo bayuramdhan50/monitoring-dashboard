@@ -9,6 +9,8 @@ export default function Page() {
   const [chartData, setChartData] = useState({
     humidity: [],
     temperature: [],
+    ph: [],
+    gas: [],
     labels: [],
   });
   const [filter, setFilter] = useState("all");
@@ -17,7 +19,7 @@ export default function Page() {
   const fetchData = async () => {
     try {
       const response = await fetch(
-        "https://rc-research-mining-2m5gou6iy-bayuramdhan50-gmailcoms-projects.vercel.app/api/sensordata/all"
+        "https://rc-research-mining-api.vercel.app/api/sensordata/all"
       );
       const jsonResponse = await response.json();
       console.log(jsonResponse); // Cek data di console
@@ -41,6 +43,8 @@ export default function Page() {
 
       const humidityData = sortedData.map((item) => item.humidity || 0);
       const temperatureData = sortedData.map((item) => item.temperature || 0);
+      const phData = sortedData.map((item) => item.ph || 0);
+      const gasData = sortedData.map((item) => item.gas || 0);
       const labelsData = sortedData.map((item) =>
         new Date(item.timestamp).toISOString()
       );
@@ -48,6 +52,8 @@ export default function Page() {
       setChartData({
         humidity: humidityData,
         temperature: temperatureData,
+        ph: phData,
+        gas: gasData,
         labels: labelsData,
       });
     }
@@ -79,6 +85,12 @@ export default function Page() {
     const intervalId = setInterval(fetchData, 5000);
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    if (originalData.length > 0) {
+      updateChartData(originalData); // Pastikan data chart diupdate setiap kali originalData berubah
+    }
+  }, [originalData]);
 
   return (
     <div className="min-h-screen bg-gray-900 p-8">
@@ -164,7 +176,27 @@ export default function Page() {
               <option value="30d">Last 30 Days</option>
             </select>
           </div>
-          <LineChart labels={chartData.labels} dataSets={chartData} />
+          <LineChart
+            labels={chartData.labels}
+            dataSets={chartData.temperature}
+            chartLabel="Temperature"
+            borderColor="rgba(255, 99, 132, 1)"
+            backgroundColor="rgba(255, 99, 132, 0.2)"
+          />
+          <LineChart
+            labels={chartData.labels}
+            dataSets={chartData.ph}
+            chartLabel="pH"
+            borderColor="rgba(54, 162, 235, 1)"
+            backgroundColor="rgba(54, 162, 235, 0.2)"
+          />
+          <LineChart
+            labels={chartData.labels}
+            dataSets={chartData.gas}
+            chartLabel="Gas"
+            borderColor="rgba(255, 206, 86, 1)"
+            backgroundColor="rgba(255, 206, 86, 0.2)"
+          />
         </div>
         <div className="w-full lg:w-1/2">
           <h2 className="text-2xl text-white font-bold mb-4">

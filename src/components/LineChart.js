@@ -1,5 +1,5 @@
 // src/components/LineChart.js
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Line } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -20,30 +20,36 @@ ChartJS.register(
   Legend
 ); // Daftarkan skala dan elemen yang diperlukan
 
-const LineChart = ({ labels, dataSets }) => {
-  const data = {
-    labels: labels,
-    datasets: [
-      {
-        label: "Humidity",
-        data: dataSets.humidity,
-        borderColor: "rgba(75, 192, 192, 1)",
-        backgroundColor: "rgba(75, 192, 192, 0.2)",
-        fill: true,
-      },
-      {
-        label: "Temperature",
-        data: dataSets.temperature,
-        borderColor: "rgba(255, 99, 132, 1)",
-        backgroundColor: "rgba(255, 99, 132, 0.2)",
-        fill: true,
-      },
-    ],
-  };
+const LineChart = ({
+  labels,
+  dataSets,
+  chartLabel,
+  borderColor,
+  backgroundColor,
+}) => {
+  const [chartData, setChartData] = useState({
+    labels: [],
+    datasets: [],
+  });
+
+  useEffect(() => {
+    setChartData({
+      labels: labels,
+      datasets: [
+        {
+          label: chartLabel,
+          data: dataSets,
+          borderColor: borderColor,
+          backgroundColor: backgroundColor,
+          fill: true,
+        },
+      ],
+    });
+  }, [labels, dataSets, chartLabel, borderColor, backgroundColor]); // Update chartData setiap kali props berubah
 
   return (
     <div>
-      <Line data={data} />
+      <Line data={chartData} />
     </div>
   );
 };
