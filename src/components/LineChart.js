@@ -18,15 +18,9 @@ ChartJS.register(
   CategoryScale,
   Tooltip,
   Legend
-); // Daftarkan skala dan elemen yang diperlukan
+);
 
-const LineChart = ({
-  labels,
-  dataSets,
-  chartLabel,
-  borderColor,
-  backgroundColor,
-}) => {
+const LineChart = ({ labels, dataSets }) => {
   const [chartData, setChartData] = useState({
     labels: [],
     datasets: [],
@@ -35,17 +29,15 @@ const LineChart = ({
   useEffect(() => {
     setChartData({
       labels: labels,
-      datasets: [
-        {
-          label: chartLabel,
-          data: dataSets,
-          borderColor: borderColor,
-          backgroundColor: backgroundColor,
-          fill: true,
-        },
-      ],
+      datasets: dataSets.map((dataSet) => ({
+        label: dataSet.label,
+        data: dataSet.data,
+        borderColor: dataSet.borderColor,
+        backgroundColor: dataSet.backgroundColor,
+        fill: true,
+      })),
     });
-  }, [labels, dataSets, chartLabel, borderColor, backgroundColor]); // Update chartData setiap kali props berubah
+  }, [labels, dataSets]);
 
   return (
     <div>

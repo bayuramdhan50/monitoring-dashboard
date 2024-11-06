@@ -121,17 +121,13 @@ export default function Page() {
               unit="%"
             />
             <DataCard
-              title="pH Level"
+              title="Soil Moisture Level"
               value={
-                latestData.ph < 6
-                  ? "Terlalu Asam"
-                  : latestData.ph < 6.5
-                  ? "Asam"
-                  : latestData.ph <= 7.5
-                  ? "Normal"
-                  : latestData.ph <= 8.5
-                  ? "Basa"
-                  : "Sangat Basa"
+                latestData.ph < 300
+                  ? "Basah"
+                  : latestData.ph < 700
+                  ? "Lembap"
+                  : "Kering"
               }
             />
             <DataCard
@@ -178,24 +174,42 @@ export default function Page() {
           </div>
           <LineChart
             labels={chartData.labels}
-            dataSets={chartData.temperature}
-            chartLabel="Temperature"
-            borderColor="rgba(255, 99, 132, 1)"
-            backgroundColor="rgba(255, 99, 132, 0.2)"
+            dataSets={[
+              {
+                label: "Temperature",
+                data: chartData.temperature,
+                borderColor: "rgba(255, 99, 132, 1)",
+                backgroundColor: "rgba(255, 99, 132, 0.2)",
+              },
+              {
+                label: "Humidity",
+                data: chartData.humidity,
+                borderColor: "rgba(54, 162, 235, 1)",
+                backgroundColor: "rgba(54, 162, 235, 0.2)",
+              },
+            ]}
           />
           <LineChart
             labels={chartData.labels}
-            dataSets={chartData.ph}
-            chartLabel="pH"
-            borderColor="rgba(54, 162, 235, 1)"
-            backgroundColor="rgba(54, 162, 235, 0.2)"
+            dataSets={[
+              {
+                label: "Soil Moisture Level",
+                data: chartData.ph,
+                borderColor: "rgba(54, 162, 235, 1)",
+                backgroundColor: "rgba(54, 162, 235, 0.2)",
+              },
+            ]}
           />
           <LineChart
             labels={chartData.labels}
-            dataSets={chartData.gas}
-            chartLabel="Gas"
-            borderColor="rgba(255, 206, 86, 1)"
-            backgroundColor="rgba(255, 206, 86, 0.2)"
+            dataSets={[
+              {
+                label: "Gas",
+                data: chartData.gas,
+                borderColor: "rgba(255, 206, 86, 1)",
+                backgroundColor: "rgba(255, 206, 86, 0.2)",
+              },
+            ]}
           />
         </div>
         <div className="w-full lg:w-1/2">
