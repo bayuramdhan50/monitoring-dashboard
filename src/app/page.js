@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import DataCard from "../components/DataCard";
 import LineChart from "../components/LineChart";
 import PieChart from "../components/PieChart";
@@ -8,7 +8,8 @@ import {
   IoThermometerSharp,
   IoLeafSharp,
   IoAlertCircleSharp,
-} from "react-icons/io5"; // Import ikon
+} from "react-icons/io5";
+import regression from "regression"; // Import regression library
 
 export default function Page() {
   const [latestData, setLatestData] = useState({});
@@ -21,28 +22,32 @@ export default function Page() {
   });
   const [filter, setFilter] = useState("all");
   const [originalData, setOriginalData] = useState([]);
-  const [apiUrl, setApiUrl] = useState(""); // URL API dari input pengguna
-  const [isConnected, setIsConnected] = useState(false); // Status koneksi
+  const [apiUrl, setApiUrl] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isChartVisible, setIsChartVisible] = useState(true);
+  const [predictedData, setPredictedData] = useState({
+    temperature: null,
+    humidity: null,
+    ph: null,
+    gas: null,
+  });
 
   const fetchData = async () => {
-    if (!apiUrl) return; // Jika URL belum diisi, tidak melakukan fetch
-
+    if (!apiUrl) return;
     try {
       const response = await fetch(`${apiUrl}`);
       const jsonResponse = await response.json();
-
       const dataArray = jsonResponse.data || [];
       if (dataArray.length > 0) {
-        setLatestData(dataArray[0]); // Ambil data terbaru
-        setOriginalData(dataArray); // Simpan semua data
-        filterDataByTime("all"); // Set filter ke "all"
-        setIsConnected(true); // Set status koneksi ke "Connected"
+        setLatestData(dataArray[0]);
+        setOriginalData(dataArray);
+        filterDataByTime("all");
+        setIsConnected(true);
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
-      setIsConnected(false); // Jika gagal, set status koneksi ke "Disconnected"
+      setIsConnected(false);
     }
   };
 
@@ -51,7 +56,6 @@ export default function Page() {
       const sortedData = data.sort(
         (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
       );
-
       const humidityData = sortedData.map((item) => item.humidity || 0);
       const temperatureData = sortedData.map((item) => item.temperature || 0);
       const phData = sortedData.map((item) => item.ph || 0);
@@ -67,13 +71,15 @@ export default function Page() {
         gas: gasData,
         labels: labelsData,
       });
+
+      // Prediksi data masa depan
+      predictFutureData(sortedData);
     }
   };
 
   const filterDataByTime = (filter) => {
     const now = new Date();
     let filteredData = originalData;
-
     if (filter === "24h") {
       filteredData = originalData.filter(
         (item) => now - new Date(item.timestamp) <= 24 * 60 * 60 * 1000
@@ -90,7 +96,6 @@ export default function Page() {
 
     updateChartData(filteredData);
   };
-
   const calculateAverages = (data) => {
     const humidityAvg =
       data.reduce((sum, item) => sum + (item.humidity || 0), 0) / data.length;
@@ -110,6 +115,41 @@ export default function Page() {
     };
   };
 
+  const predictFutureData = (data) => {
+    if (data.length < 2) return; // Memastikan ada cukup data untuk prediksi
+
+    // Menyusun data untuk regresi linear (X = waktu, Y = sensor values)
+    const timeSeries = data.map((item) => new Date(item.timestamp).getTime());
+    const humiditySeries = data.map((item) => item.humidity || 0);
+    const temperatureSeries = data.map((item) => item.temperature || 0);
+    const phSeries = data.map((item) => item.ph || 0);
+    const gasSeries = data.map((item) => item.gas || 0);
+
+    // Buat model regresi linear sederhana untuk masing-masing sensor
+    const humidityModel = regression.linear(
+      timeSeries.map((time, index) => [time, humiditySeries[index]])
+    );
+    const temperatureModel = regression.linear(
+      timeSeries.map((time, index) => [time, temperatureSeries[index]])
+    );
+    const phModel = regression.linear(
+      timeSeries.map((time, index) => [time, phSeries[index]])
+    );
+    const gasModel = regression.linear(
+      timeSeries.map((time, index) => [time, gasSeries[index]])
+    );
+
+    // Prediksi untuk waktu depan (misalnya, satu jam ke depan)
+    const futureTime = new Date().getTime() + 60 * 60 * 1000; // 1 jam dari sekarang
+
+    setPredictedData({
+      temperature: temperatureModel.predict(futureTime)[1].toFixed(2),
+      humidity: humidityModel.predict(futureTime)[1].toFixed(2),
+      ph: phModel.predict(futureTime)[1].toFixed(2),
+      gas: gasModel.predict(futureTime)[1].toFixed(2),
+    });
+  };
+
   useEffect(() => {
     if (apiUrl) {
       fetchData();
@@ -120,7 +160,7 @@ export default function Page() {
 
   useEffect(() => {
     if (originalData.length > 0) {
-      updateChartData(originalData); // Pastikan data chart diupdate setiap kali originalData berubah
+      updateChartData(originalData);
     }
   }, [originalData]);
 
@@ -160,6 +200,48 @@ export default function Page() {
           )}
         </div>
 
+        {/* Rata-rata Sensor Data */}
+        <div className="mt-8 text-white text-center mb-8">
+          <h3 className="text-xl font-bold mb-4">Sensor Averages</h3>
+          <div className="container mx-auto p-4 bg-gray-800 rounded-lg shadow-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Temperature */}
+              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
+                <IoThermometerSharp className="text-red-500 mr-3 text-3xl" />
+                <div>
+                  <p className="font-semibold">Temperature</p>
+                  <p>{averages.temperatureAvg}°C</p>
+                </div>
+              </div>
+              {/* Humidity */}
+              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
+                <IoWaterSharp className="text-blue-500 mr-3 text-3xl" />
+                <div>
+                  <p className="font-semibold">Humidity</p>
+                  <p>{averages.humidityAvg}%</p>
+                </div>
+              </div>
+              {/* Soil Moisture */}
+              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
+                <IoLeafSharp className="text-green-500 mr-3 text-3xl" />
+                <div>
+                  <p className="font-semibold">Soil Moisture</p>
+                  <p>{averages.phAvg}</p>
+                </div>
+              </div>
+              {/* Gas Level */}
+              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
+                <IoAlertCircleSharp className="text-yellow-500 mr-3 text-3xl" />
+                <div>
+                  <p className="font-semibold">Gas Level</p>
+                  <p>{averages.gasAvg}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sensor Data */}
         <div className="p-6 bg-gray-800 rounded-lg shadow-lg mb-8">
           <h2 className="text-2xl text-white font-bold mb-4 text-center">
             Sensor Data
@@ -232,41 +314,41 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Rata-rata Sensor Data */}
-        <div className="mt-8 text-white text-center">
-          <h3 className="text-xl font-bold mb-4">Sensor Averages</h3>
+        {/* Prediksi Data */}
+        <div className="mt-8 text-white text-center mb-8">
+          <h3 className="text-xl font-bold mb-4">Predicted Sensor Values</h3>
           <div className="container mx-auto p-4 bg-gray-800 rounded-lg shadow-lg">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Humidity */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoWaterSharp className="text-blue-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Humidity</p>
-                  <p>{averages.humidityAvg}%</p>
-                </div>
-              </div>
-              {/* Temperature */}
+              {/* Prediksi Suhu */}
               <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
                 <IoThermometerSharp className="text-red-500 mr-3 text-3xl" />
                 <div>
-                  <p className="font-semibold">Temperature</p>
-                  <p>{averages.temperatureAvg}°C</p>
+                  <p className="font-semibold">Predicted Temperature</p>
+                  <p>{predictedData.temperature}°C</p>
                 </div>
               </div>
-              {/* Soil Moisture */}
+              {/* Prediksi Kelembapan */}
+              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
+                <IoWaterSharp className="text-blue-500 mr-3 text-3xl" />
+                <div>
+                  <p className="font-semibold">Predicted Humidity</p>
+                  <p>{predictedData.humidity}%</p>
+                </div>
+              </div>
+              {/* Prediksi Kelembapan Tanah */}
               <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
                 <IoLeafSharp className="text-green-500 mr-3 text-3xl" />
                 <div>
-                  <p className="font-semibold">Soil Moisture</p>
-                  <p>{averages.phAvg}</p>
+                  <p className="font-semibold">Predicted Soil Moisture</p>
+                  <p>{predictedData.ph}</p>
                 </div>
               </div>
-              {/* Gas Level */}
+              {/* Prediksi Gas */}
               <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
                 <IoAlertCircleSharp className="text-yellow-500 mr-3 text-3xl" />
                 <div>
-                  <p className="font-semibold">Gas Level</p>
-                  <p>{averages.gasAvg}</p>
+                  <p className="font-semibold">Predicted Gas Level</p>
+                  <p>{predictedData.gas}</p>
                 </div>
               </div>
             </div>
@@ -283,11 +365,14 @@ export default function Page() {
           </button>
           {isChartVisible && isConnected && (
             <div className="flex flex-col lg:flex-row gap-8 mt-8">
-              <div className="w-full lg:w-1/2">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl text-white font-bold">Data Trend</h2>
+              {/* Left Section with 2 Charts */}
+              <div className="w-full lg:w-1/2 grid grid-cols-1 gap-8">
+                <div>
+                  <h2 className="text-2xl text-white font-bold mb-4">
+                    Data Trend
+                  </h2>
                   <select
-                    className="bg-gray-800 text-white p-2 rounded"
+                    className="bg-gray-800 text-white p-2 rounded mb-4"
                     value={filter}
                     onChange={(e) => {
                       setFilter(e.target.value);
@@ -299,77 +384,89 @@ export default function Page() {
                     <option value="7d">Last 7 Days</option>
                     <option value="30d">Last 30 Days</option>
                   </select>
-                </div>
-                <LineChart
-                  labels={chartData.labels}
-                  dataSets={[
-                    {
-                      label: "Temperature",
-                      data: chartData.temperature,
-                      borderColor: "rgba(255, 99, 132, 1)",
-                      backgroundColor: "rgba(255, 99, 132, 0.2)",
-                    },
-                    {
-                      label: "Humidity",
-                      data: chartData.humidity,
-                      borderColor: "rgba(54, 162, 235, 1)",
-                      backgroundColor: "rgba(54, 162, 235, 0.2)",
-                    },
-                  ]}
-                />
-                <LineChart
-                  labels={chartData.labels}
-                  dataSets={[
-                    {
-                      label: "Soil Moisture Level",
-                      data: chartData.ph,
-                      borderColor: "rgba(0, 128, 0, 1)",
-                      backgroundColor: "rgba(0, 128, 0, 0.2)",
-                    },
-                  ]}
-                />
-                <LineChart
-                  labels={chartData.labels}
-                  dataSets={[
-                    {
-                      label: "Gas Level",
-                      data: chartData.gas,
-                      borderColor: "rgba(255, 165, 0, 1)",
-                      backgroundColor: "rgba(255, 165, 0, 0.2)",
-                    },
-                  ]}
-                />
-              </div>
-              <div className="w-full lg:w-1/2">
-                <h2 className="text-2xl text-white font-bold mb-4">
-                  Gas Level Distribution
-                </h2>
-                <PieChart
-                  data={{
-                    labels: [
-                      "Aman",
-                      "Perhatian",
-                      "Berbahaya",
-                      "Sangat Berbahaya",
-                    ],
-                    datasets: [
+                  <LineChart
+                    labels={chartData.labels}
+                    dataSets={[
                       {
-                        data: [
-                          latestData.gas < 51 ? 1 : 0,
-                          latestData.gas < 101 && latestData.gas >= 51 ? 1 : 0,
-                          latestData.gas < 301 && latestData.gas >= 101 ? 1 : 0,
-                          latestData.gas >= 301 ? 1 : 0,
-                        ],
-                        backgroundColor: [
-                          "#00FF00",
-                          "#FFFF00",
-                          "#FF0000",
-                          "#FF0000",
-                        ],
+                        label: "Temperature",
+                        data: chartData.temperature,
+                        borderColor: "rgba(255, 99, 132, 1)",
+                        backgroundColor: "rgba(255, 99, 132, 0.2)",
                       },
-                    ],
-                  }}
-                />
+                      {
+                        label: "Humidity",
+                        data: chartData.humidity,
+                        borderColor: "rgba(54, 162, 235, 1)",
+                        backgroundColor: "rgba(54, 162, 235, 0.2)",
+                      },
+                    ]}
+                  />
+                </div>
+                <div>
+                  <LineChart
+                    labels={chartData.labels}
+                    dataSets={[
+                      {
+                        label: "Soil Moisture Level",
+                        data: chartData.ph,
+                        borderColor: "rgba(0, 128, 0, 1)",
+                        backgroundColor: "rgba(0, 128, 0, 0.2)",
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              {/* Right Section with 1 Chart and 1 Pie Chart */}
+              <div className="w-full lg:w-1/2 grid grid-cols-1 gap-8">
+                <div>
+                  <h2 className="text-2xl text-white font-bold mb-4">
+                    Gas Level Distribution
+                  </h2>
+                  <PieChart
+                    data={{
+                      labels: [
+                        "Aman",
+                        "Perhatian",
+                        "Berbahaya",
+                        "Sangat Berbahaya",
+                      ],
+                      datasets: [
+                        {
+                          data: [
+                            latestData.gas < 51 ? 1 : 0,
+                            latestData.gas < 101 && latestData.gas >= 51
+                              ? 1
+                              : 0,
+                            latestData.gas < 301 && latestData.gas >= 101
+                              ? 1
+                              : 0,
+                            latestData.gas >= 301 ? 1 : 0,
+                          ],
+                          backgroundColor: [
+                            "#00FF00",
+                            "#FFFF00",
+                            "#FF0000",
+                            "#FF0000",
+                          ],
+                        },
+                      ],
+                    }}
+                  />
+                </div>
+                <div>
+                  <LineChart
+                    labels={chartData.labels}
+                    dataSets={[
+                      {
+                        label: "Gas Level",
+                        data: chartData.gas,
+                        borderColor: "rgba(255, 165, 0, 1)",
+                        backgroundColor: "rgba(255, 165, 0, 0.2)",
+                      },
+                    ]}
+                  />
+                </div>
               </div>
             </div>
           )}
