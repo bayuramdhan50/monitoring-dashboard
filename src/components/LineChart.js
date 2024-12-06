@@ -1,48 +1,52 @@
-// src/components/LineChart.js
-import React, { useEffect, useState } from "react";
-import { Line } from "react-chartjs-2";
+import React from "react";
 import {
-  Chart as ChartJS,
-  LinearScale,
-  PointElement,
-  LineElement,
-  CategoryScale,
+  LineChart as RechartsLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   Tooltip,
   Legend,
-} from "chart.js";
-
-ChartJS.register(
-  LinearScale,
-  PointElement,
-  LineElement,
-  CategoryScale,
-  Tooltip,
-  Legend
-);
+  ResponsiveContainer,
+} from "recharts";
 
 const LineChart = ({ labels, dataSets }) => {
-  const [chartData, setChartData] = useState({
-    labels: [],
-    datasets: [],
+  // Transform labels and data into Recharts format
+  const chartData = labels.map((label, index) => {
+    const dataPoint = { name: new Date(label).toLocaleString() };
+    dataSets.forEach((dataset) => {
+      dataPoint[dataset.label] = dataset.data[index];
+    });
+    return dataPoint;
   });
 
-  useEffect(() => {
-    setChartData({
-      labels: labels,
-      datasets: dataSets.map((dataSet) => ({
-        label: dataSet.label,
-        data: dataSet.data,
-        borderColor: dataSet.borderColor,
-        backgroundColor: dataSet.backgroundColor,
-        fill: true,
-      })),
-    });
-  }, [labels, dataSets]);
-
   return (
-    <div>
-      <Line data={chartData} />
-    </div>
+    <ResponsiveContainer width="100%" height={300}>
+      <RechartsLineChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+        <XAxis dataKey="name" stroke="#fff" />
+        <YAxis stroke="#fff" />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "#333",
+            color: "#fff",
+            borderRadius: "8px",
+          }}
+          itemStyle={{ color: "#fff" }}
+        />
+        <Legend />
+        {dataSets.map((dataset, index) => (
+          <Line
+            key={index}
+            type="monotone"
+            dataKey={dataset.label}
+            stroke={dataset.borderColor}
+            strokeWidth={2}
+            dot={false}
+          />
+        ))}
+      </RechartsLineChart>
+    </ResponsiveContainer>
   );
 };
 

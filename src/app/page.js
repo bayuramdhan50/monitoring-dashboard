@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { use, useEffect, useState } from "react";
 import DataCard from "../components/DataCard";
 import LineChart from "../components/LineChart";
 import PieChart from "../components/PieChart";
@@ -8,6 +8,8 @@ import {
   IoThermometerSharp,
   IoLeafSharp,
   IoAlertCircleSharp,
+  IoRadioSharp, // tambahan untuk vibration
+  IoEyeSharp,
 } from "react-icons/io5";
 import regression from "regression"; // Import regression library
 
@@ -24,9 +26,15 @@ export default function Page() {
   const [originalData, setOriginalData] = useState([]);
   const [apiUrl, setApiUrl] = useState("");
   const [isConnected, setIsConnected] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [averages, setAverages] = useState({});
   const [isChartVisible, setIsChartVisible] = useState(true);
   const [predictedData, setPredictedData] = useState({
+    temperature: null,
+    humidity: null,
+    ph: null,
+    gas: null,
+  });
+  const [trends, setTrends] = useState({
     temperature: null,
     humidity: null,
     ph: null,
@@ -77,6 +85,17 @@ export default function Page() {
     }
   };
 
+  const calculateTrend = (currentData, pastData) => {
+    if (!pastData) return { trend: null, percentage: null };
+
+    const percentageChange = ((currentData - pastData) / pastData) * 100;
+
+    return {
+      trend: percentageChange > 0 ? "up" : percentageChange < 0 ? "down" : null,
+      percentage: Math.abs(percentageChange.toFixed(1)),
+    };
+  };
+
   const filterDataByTime = (filter) => {
     const now = new Date();
     let filteredData = originalData;
@@ -97,6 +116,15 @@ export default function Page() {
     updateChartData(filteredData);
   };
   const calculateAverages = (data) => {
+    if (!data || data.length === 0) {
+      return {
+        humidityAvg: 0,
+        temperatureAvg: 0,
+        phAvg: 0,
+        gasAvg: 0,
+      };
+    }
+
     const humidityAvg =
       data.reduce((sum, item) => sum + (item.humidity || 0), 0) / data.length;
     const temperatureAvg =
@@ -108,10 +136,10 @@ export default function Page() {
       data.reduce((sum, item) => sum + (item.gas || 0), 0) / data.length;
 
     return {
-      humidityAvg: humidityAvg.toFixed(2),
-      temperatureAvg: temperatureAvg.toFixed(2),
-      phAvg: phAvg.toFixed(2),
-      gasAvg: gasAvg.toFixed(2),
+      humidityAvg: parseFloat(humidityAvg.toFixed(2)),
+      temperatureAvg: parseFloat(temperatureAvg.toFixed(2)),
+      phAvg: parseFloat(phAvg.toFixed(2)),
+      gasAvg: parseFloat(gasAvg.toFixed(2)),
     };
   };
 
@@ -164,7 +192,11 @@ export default function Page() {
     }
   }, [originalData]);
 
-  const averages = calculateAverages(originalData);
+  useEffect(() => {
+    // Pastikan averages diperbarui terlebih dahulu
+    const averages = calculateAverages(originalData);
+    setAverages(averages);
+  }, [originalData]);
 
   return (
     <div className="flex min-h-screen bg-gray-900">
@@ -191,7 +223,7 @@ export default function Page() {
           </button>
         </div>
 
-        {/* Status Koneksi */}
+        {/* Connection Status */}
         <div className="text-center text-white mb-4">
           {isConnected ? (
             <span className="text-green-500">ESP Connected</span>
@@ -200,7 +232,7 @@ export default function Page() {
           )}
         </div>
 
-        {/* Rata-rata Sensor Data */}
+        {/* Sensor Averages */}
         <div className="mt-8 text-white text-center mb-8">
           <h3 className="text-xl font-bold mb-4">Sensor Averages</h3>
           <div className="container mx-auto p-4 bg-gray-800 rounded-lg shadow-lg">
@@ -210,7 +242,9 @@ export default function Page() {
                 <IoThermometerSharp className="text-red-500 mr-3 text-3xl" />
                 <div>
                   <p className="font-semibold">Temperature</p>
-                  <p>{averages.temperatureAvg}°C</p>
+                  <div className="flex items-center">
+                    <p>{averages.temperatureAvg}°C</p>
+                  </div>
                 </div>
               </div>
               {/* Humidity */}
@@ -218,7 +252,9 @@ export default function Page() {
                 <IoWaterSharp className="text-blue-500 mr-3 text-3xl" />
                 <div>
                   <p className="font-semibold">Humidity</p>
-                  <p>{averages.humidityAvg}%</p>
+                  <div className="flex items-center">
+                    <p>{averages.humidityAvg}%</p>
+                  </div>
                 </div>
               </div>
               {/* Soil Moisture */}
@@ -226,7 +262,9 @@ export default function Page() {
                 <IoLeafSharp className="text-green-500 mr-3 text-3xl" />
                 <div>
                   <p className="font-semibold">Soil Moisture</p>
-                  <p>{averages.phAvg}</p>
+                  <div className="flex items-center">
+                    <p>{averages.phAvg}</p>
+                  </div>
                 </div>
               </div>
               {/* Gas Level */}
@@ -234,7 +272,9 @@ export default function Page() {
                 <IoAlertCircleSharp className="text-yellow-500 mr-3 text-3xl" />
                 <div>
                   <p className="font-semibold">Gas Level</p>
-                  <p>{averages.gasAvg}</p>
+                  <div className="flex items-center">
+                    <p>{averages.gasAvg}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -249,15 +289,27 @@ export default function Page() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {isConnected && latestData && (
               <>
-                <div className="p-4 bg-gray-700 rounded-lg shadow-md ">
+                <div className="p-4 bg-gray-700 rounded-lg shadow-md">
                   <DataCard
                     title="Temperature"
-                    value={
-                      Number(latestData.temperature || 0).toFixed(2) + "°C"
-                    }
+                    value={Number(latestData.temperature || 0).toFixed(2)}
+                    unit="°C"
+                    icon={<IoThermometerSharp className="text-red-500" />}
                     valueType="gauge"
                     gaugeValue={Number(latestData.temperature || 0) / 100}
                     gaugeColors={["#00FF00", "#FFFF00", "#FF0000"]}
+                    trend={
+                      calculateTrend(
+                        latestData.temperature,
+                        originalData[1]?.temperature
+                      ).trend
+                    }
+                    trendPercentage={
+                      calculateTrend(
+                        latestData.temperature,
+                        originalData[1]?.temperature
+                      ).percentage
+                    }
                   />
                 </div>
                 <div className="p-4 bg-gray-700 rounded-lg shadow-md">
@@ -265,6 +317,19 @@ export default function Page() {
                     title="Humidity"
                     value={latestData.humidity || 0}
                     unit="%"
+                    icon={<IoWaterSharp className="text-blue-500" />}
+                    trend={
+                      calculateTrend(
+                        latestData.humidity,
+                        originalData[1]?.humidity
+                      ).trend
+                    }
+                    trendPercentage={
+                      calculateTrend(
+                        latestData.humidity,
+                        originalData[1]?.humidity
+                      ).percentage
+                    }
                   />
                 </div>
                 <div className="p-4 bg-gray-700 rounded-lg shadow-md">
@@ -272,11 +337,12 @@ export default function Page() {
                     title="Soil Moisture Level"
                     value={
                       latestData.ph < 300
-                        ? "Basah"
+                        ? "Wet"
                         : latestData.ph < 700
-                        ? "Lembap"
-                        : "Kering"
+                        ? "Moist"
+                        : "Dry"
                     }
+                    icon={<IoLeafSharp className="text-green-500" />}
                   />
                 </div>
                 <div className="p-4 bg-gray-700 rounded-lg shadow-md">
@@ -284,29 +350,34 @@ export default function Page() {
                     title="Gas Level"
                     value={
                       latestData.gas < 51
-                        ? "Aman"
+                        ? "Safe"
                         : latestData.gas < 101
-                        ? "Perhatian"
+                        ? "Caution"
                         : latestData.gas < 301
-                        ? "Berbahaya"
-                        : "Sangat Berbahaya"
+                        ? "Dangerous"
+                        : "Highly Dangerous"
                     }
+                    icon={<IoAlertCircleSharp className="text-yellow-500" />}
                   />
                 </div>
                 <div className="p-4 bg-gray-700 rounded-lg shadow-md">
                   <DataCard
-                    title="Getaran Status"
+                    title="Vibration Status"
                     value={
-                      latestData.getaran ? "Ada Getaran" : "Tidak Ada Getaran"
+                      latestData.vibration
+                        ? "Vibration Detected"
+                        : "No Vibration"
                     }
+                    icon={<IoRadioSharp className="text-purple-500" />}
                   />
                 </div>
                 <div className="p-4 bg-gray-700 rounded-lg shadow-md">
                   <DataCard
                     title="Infrared Status"
                     value={
-                      latestData.infrared ? "Ada Benda" : "Tidak Ada Benda"
+                      latestData.infrared ? "Object Detected" : "No Object"
                     }
+                    icon={<IoEyeSharp className="text-orange-500" />}
                   />
                 </div>
               </>
@@ -314,12 +385,12 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Prediksi Data */}
+        {/* Predicted Data */}
         <div className="mt-8 text-white text-center mb-8">
           <h3 className="text-xl font-bold mb-4">Predicted Sensor Values</h3>
           <div className="container mx-auto p-4 bg-gray-800 rounded-lg shadow-lg">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Prediksi Suhu */}
+              {/* Predicted Temperature */}
               <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
                 <IoThermometerSharp className="text-red-500 mr-3 text-3xl" />
                 <div>
@@ -327,7 +398,7 @@ export default function Page() {
                   <p>{predictedData.temperature}°C</p>
                 </div>
               </div>
-              {/* Prediksi Kelembapan */}
+              {/* Predicted Humidity */}
               <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
                 <IoWaterSharp className="text-blue-500 mr-3 text-3xl" />
                 <div>
@@ -335,7 +406,7 @@ export default function Page() {
                   <p>{predictedData.humidity}%</p>
                 </div>
               </div>
-              {/* Prediksi Kelembapan Tanah */}
+              {/* Predicted Soil Moisture */}
               <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
                 <IoLeafSharp className="text-green-500 mr-3 text-3xl" />
                 <div>
@@ -343,7 +414,7 @@ export default function Page() {
                   <p>{predictedData.ph}</p>
                 </div>
               </div>
-              {/* Prediksi Gas */}
+              {/* Predicted Gas */}
               <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
                 <IoAlertCircleSharp className="text-yellow-500 mr-3 text-3xl" />
                 <div>
@@ -355,7 +426,7 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Grafik dan Statistik */}
+        {/* Charts and Statistics */}
         <div className="p-6">
           <button
             className="bg-blue-500 text-white p-2 rounded mb-4"
@@ -426,10 +497,10 @@ export default function Page() {
                   <PieChart
                     data={{
                       labels: [
-                        "Aman",
-                        "Perhatian",
-                        "Berbahaya",
-                        "Sangat Berbahaya",
+                        "Safe",
+                        "Caution",
+                        "Dangerous",
+                        "Highly Dangerous",
                       ],
                       datasets: [
                         {
