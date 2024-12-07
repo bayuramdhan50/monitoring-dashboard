@@ -2,19 +2,24 @@
 import React, { use, useEffect, useState } from "react";
 import DataCard from "../components/DataCard";
 import LineChart from "../components/LineChart";
-import PieChart from "../components/PieChart";
 import {
   IoWaterSharp,
   IoThermometerSharp,
   IoLeafSharp,
   IoAlertCircleSharp,
-  IoRadioSharp, // tambahan untuk vibration
+  IoSpeedometerSharp, // tambahan untuk vibration
   IoEyeSharp,
 } from "react-icons/io5";
 import regression from "regression"; // Import regression library
 
 export default function Page() {
-  const [latestData, setLatestData] = useState({});
+  const [latestData, setLatestData] = useState({
+    temperature: 0,
+    humidity: 0,
+    ph: 0,
+    gas: 0,
+    getaran: 0,
+  });
   const [chartData, setChartData] = useState({
     humidity: [],
     temperature: [],
@@ -26,19 +31,24 @@ export default function Page() {
   const [originalData, setOriginalData] = useState([]);
   const [apiUrl, setApiUrl] = useState("");
   const [isConnected, setIsConnected] = useState(false);
-  const [averages, setAverages] = useState({});
+  const [averages, setAverages] = useState({
+    temperature: '0',
+    humidity: '0',
+    soil: '0',
+    gas: '0'
+  });
   const [isChartVisible, setIsChartVisible] = useState(true);
   const [predictedData, setPredictedData] = useState({
-    temperature: null,
-    humidity: null,
-    ph: null,
-    gas: null,
+    temperature: 0,
+    humidity: 0,
+    ph: 0,
+    gas: 0
   });
   const [trends, setTrends] = useState({
-    temperature: null,
-    humidity: null,
-    ph: null,
-    gas: null,
+    temperature: { trend: null, change: 0 },
+    humidity: { trend: null, change: 0 },
+    ph: { trend: null, change: 0 },
+    gas: { trend: null, change: 0 }
   });
 
   const fetchData = async () => {
@@ -96,9 +106,21 @@ export default function Page() {
     };
   };
 
+  const calculateChange = (current, previous) => {
+    if (!previous || current === undefined || previous === undefined) {
+      return { trend: null, change: 0 };
+    }
+    const change = ((current - previous) / previous) * 100;
+    return {
+      trend: change > 0 ? 'up' : change < 0 ? 'down' : null,
+      change: Math.abs(change).toFixed(1)
+    };
+  };
+
   const filterDataByTime = (filter) => {
     const now = new Date();
     let filteredData = originalData;
+    
     if (filter === "24h") {
       filteredData = originalData.filter(
         (item) => now - new Date(item.timestamp) <= 24 * 60 * 60 * 1000
@@ -113,70 +135,85 @@ export default function Page() {
       );
     }
 
+    // Update chart data
     updateChartData(filteredData);
-  };
-  const calculateAverages = (data) => {
-    if (!data || data.length === 0) {
-      return {
-        humidityAvg: 0,
-        temperatureAvg: 0,
-        phAvg: 0,
-        gasAvg: 0,
-      };
+    
+    // Update latest data with the most recent filtered entry
+    if (filteredData.length > 0) {
+      const sortedData = [...filteredData].sort(
+        (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+      );
+      setLatestData(sortedData[0]);
     }
 
-    const humidityAvg =
-      data.reduce((sum, item) => sum + (item.humidity || 0), 0) / data.length;
-    const temperatureAvg =
-      data.reduce((sum, item) => sum + (item.temperature || 0), 0) /
-      data.length;
-    const phAvg =
-      data.reduce((sum, item) => sum + (item.ph || 0), 0) / data.length;
-    const gasAvg =
-      data.reduce((sum, item) => sum + (item.gas || 0), 0) / data.length;
+    // Update averages for filtered data
+    const newAverages = calculateAverages(filteredData);
+    if (newAverages) {
+      setAverages(newAverages);
+    }
+
+    // Calculate trends for filtered data
+    if (filteredData.length >= 2) {
+      const tempData = filteredData.map(d => d.temperature);
+      const humData = filteredData.map(d => d.humidity);
+      const soilData = filteredData.map(d => d.ph);
+      const gasData = filteredData.map(d => d.gas);
+
+      setPredictedData({
+        temperature: predictFutureData(tempData),
+        humidity: predictFutureData(humData),
+        ph: predictFutureData(soilData),
+        gas: predictFutureData(gasData),
+      });
+    }
+  };
+
+  const predictFutureData = (data, steps = 5) => {
+    if (data.length < 2) return null;
+
+    // Create arrays for regression
+    const points = data.map((value, index) => [index, value]);
+    const result = regression.linear(points);
+
+    // Predict next values
+    const lastIndex = points.length - 1;
+    return result.predict(lastIndex + steps)[1];
+  };
+
+  useEffect(() => {
+    if (originalData.length >= 2) {
+      const tempData = originalData.map(d => d.temperature);
+      const humData = originalData.map(d => d.humidity);
+      const soilData = originalData.map(d => d.ph);
+      const gasData = originalData.map(d => d.gas);
+
+      setPredictedData({
+        temperature: predictFutureData(tempData),
+        humidity: predictFutureData(humData),
+        ph: predictFutureData(soilData),
+        gas: predictFutureData(gasData),
+      });
+    }
+  }, [originalData]);
+
+  // Calculate averages
+  const calculateAverages = (data) => {
+    if (!data || data.length === 0) return null;
 
     return {
-      humidityAvg: parseFloat(humidityAvg.toFixed(2)),
-      temperatureAvg: parseFloat(temperatureAvg.toFixed(2)),
-      phAvg: parseFloat(phAvg.toFixed(2)),
-      gasAvg: parseFloat(gasAvg.toFixed(2)),
+      temperature: (data.reduce((sum, item) => sum + item.temperature, 0) / data.length).toFixed(2),
+      humidity: (data.reduce((sum, item) => sum + item.humidity, 0) / data.length).toFixed(2),
+      soil: (data.reduce((sum, item) => sum + item.ph, 0) / data.length).toFixed(2),
+      gas: (data.reduce((sum, item) => sum + item.gas, 0) / data.length).toFixed(2)
     };
   };
 
-  const predictFutureData = (data) => {
-    if (data.length < 2) return; // Memastikan ada cukup data untuk prediksi
-
-    // Menyusun data untuk regresi linear (X = waktu, Y = sensor values)
-    const timeSeries = data.map((item) => new Date(item.timestamp).getTime());
-    const humiditySeries = data.map((item) => item.humidity || 0);
-    const temperatureSeries = data.map((item) => item.temperature || 0);
-    const phSeries = data.map((item) => item.ph || 0);
-    const gasSeries = data.map((item) => item.gas || 0);
-
-    // Buat model regresi linear sederhana untuk masing-masing sensor
-    const humidityModel = regression.linear(
-      timeSeries.map((time, index) => [time, humiditySeries[index]])
-    );
-    const temperatureModel = regression.linear(
-      timeSeries.map((time, index) => [time, temperatureSeries[index]])
-    );
-    const phModel = regression.linear(
-      timeSeries.map((time, index) => [time, phSeries[index]])
-    );
-    const gasModel = regression.linear(
-      timeSeries.map((time, index) => [time, gasSeries[index]])
-    );
-
-    // Prediksi untuk waktu depan (misalnya, satu jam ke depan)
-    const futureTime = new Date().getTime() + 60 * 60 * 1000; // 1 jam dari sekarang
-
-    setPredictedData({
-      temperature: temperatureModel.predict(futureTime)[1].toFixed(2),
-      humidity: humidityModel.predict(futureTime)[1].toFixed(2),
-      ph: phModel.predict(futureTime)[1].toFixed(2),
-      gas: gasModel.predict(futureTime)[1].toFixed(2),
-    });
-  };
+  useEffect(() => {
+    const averages = calculateAverages(originalData);
+    if (averages) {
+      setAverages(averages);
+    }
+  }, [originalData]);
 
   useEffect(() => {
     if (apiUrl) {
@@ -198,349 +235,465 @@ export default function Page() {
     setAverages(averages);
   }, [originalData]);
 
+  useEffect(() => {
+    if (originalData.length >= 2) {
+      const current = originalData[0];
+      const previous = originalData[1];
+
+      setTrends({
+        temperature: calculateChange(current.temperature, previous.temperature),
+        humidity: calculateChange(current.humidity, previous.humidity),
+        ph: calculateChange(current.ph, previous.ph),
+        gas: calculateChange(current.gas, previous.gas)
+      });
+    }
+  }, [originalData]);
+
+  useEffect(() => {
+    setIsChartVisible(true);
+  }, []);
+
+  const AveragesSection = () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+      <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+        Average Sensor Values
+      </h2>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <IoThermometerSharp className="text-red-500 text-xl" />
+            <span className="text-gray-600 dark:text-gray-300">Temperature</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
+            {averages?.temperature || '0'} °C
+          </p>
+        </div>
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <IoWaterSharp className="text-blue-500 text-xl" />
+            <span className="text-gray-600 dark:text-gray-300">Humidity</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
+            {averages?.humidity || '0'} %
+          </p>
+        </div>
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <IoLeafSharp className="text-green-500 text-xl" />
+            <span className="text-gray-600 dark:text-gray-300">Soil Moisture</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
+            {averages?.soil || '0'}
+          </p>
+        </div>
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <IoAlertCircleSharp className="text-yellow-500 text-xl" />
+            <span className="text-gray-600 dark:text-gray-300">Gas Level</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
+            {averages?.gas || '0'} ppm
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const PredictionsSection = () => (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+      <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+        Predicted Next Values
+      </h2>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <IoThermometerSharp className="text-red-500 text-xl" />
+            <span className="text-gray-600 dark:text-gray-300">Temperature</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
+            {predictedData?.temperature ? predictedData.temperature.toFixed(2) : '0'} °C
+          </p>
+        </div>
+        <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <IoWaterSharp className="text-blue-500 text-xl" />
+            <span className="text-gray-600 dark:text-gray-300">Humidity</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
+            {predictedData?.humidity ? predictedData.humidity.toFixed(2) : '0'} %
+          </p>
+        </div>
+        <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <IoLeafSharp className="text-green-500 text-xl" />
+            <span className="text-gray-600 dark:text-gray-300">Soil Moisture</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
+            {predictedData?.ph ? predictedData.ph.toFixed(2) : '0'}
+          </p>
+        </div>
+        <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <IoAlertCircleSharp className="text-yellow-500 text-xl" />
+            <span className="text-gray-600 dark:text-gray-300">Gas Level</span>
+          </div>
+          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
+            {predictedData?.gas ? predictedData.gas.toFixed(2) : '0'} ppm
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Add export function
+  const exportToCSV = (data, filename) => {
+    // Define CSV headers
+    const headers = ['Timestamp', 'Temperature', 'Humidity', 'pH', 'Gas', 'Getaran'];
+    
+    // Convert data to CSV format with proper timestamp handling
+    const csvData = data.map(row => {
+      const timestamp = new Date(row.timestamp);
+      const formattedDate = `${timestamp.toLocaleDateString()} ${timestamp.toLocaleTimeString()}`;
+      return [
+        `"${formattedDate}"`, // Wrap timestamp in quotes to handle commas
+        row.temperature || '0',
+        row.humidity || '0',
+        row.ph || '0',
+        row.gas || '0',
+        row.getaran === 0 ? 'false' : row.getaran || 'false' // Convert 0 to "false" for getaran
+      ];
+    });
+    
+    // Combine headers and data
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => row.join(','))
+    ].join('\n');
+    
+    // Create download link
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Add export button handler
+  const handleExport = () => {
+    const currentDate = new Date().toLocaleDateString().replace(/\//g, '-');
+    let dataToExport = originalData;
+    
+    // If a filter is active, export only filtered data
+    if (filter !== 'all') {
+      const now = new Date();
+      if (filter === '24h') {
+        dataToExport = originalData.filter(
+          (item) => now - new Date(item.timestamp) <= 24 * 60 * 60 * 1000
+        );
+      } else if (filter === '7d') {
+        dataToExport = originalData.filter(
+          (item) => now - new Date(item.timestamp) <= 7 * 24 * 60 * 60 * 1000
+        );
+      } else if (filter === '30d') {
+        dataToExport = originalData.filter(
+          (item) => now - new Date(item.timestamp) <= 30 * 24 * 60 * 60 * 1000
+        );
+      }
+    }
+    
+    exportToCSV(dataToExport, `sensor_data_${currentDate}`);
+  };
+
   return (
-    <div className="flex min-h-screen bg-gray-900">
-      {/* Main Content */}
-      <div className="flex-1 p-8">
-        <h1 className="text-4xl text-white font-bold text-center mb-8">
-          Monitoring Dashboard
-        </h1>
-
-        {/* Input API URL */}
-        <div className="text-center mb-6">
-          <input
-            type="text"
-            className="p-2 w-3/4 md:w-1/2 text-black rounded"
-            placeholder="Enter API Server URL"
-            value={apiUrl}
-            onChange={(e) => setApiUrl(e.target.value)}
-          />
-          <button
-            className="ml-4 bg-blue-500 text-white p-2 rounded"
-            onClick={fetchData}
-          >
-            Connect
-          </button>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
+      <div className="p-6 space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">IoT Research Mining Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Real-time monitoring and analysis</p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="Enter API URL"
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button
+                onClick={fetchData}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+              >
+                Connect
+              </button>
+            </div>
+            <div className={`flex items-center ${isConnected ? 'text-green-500' : 'text-red-500'}`}>
+              <div className="w-3 h-3 rounded-full mr-2 animate-pulse" 
+                style={{ backgroundColor: isConnected ? '#10B981' : '#EF4444' }} />
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </div>
+          </div>
         </div>
 
-        {/* Connection Status */}
-        <div className="text-center text-white mb-4">
-          {isConnected ? (
-            <span className="text-green-500">ESP Connected</span>
-          ) : (
-            <span className="text-red-500">Disconnected</span>
-          )}
-        </div>
+        {/* Sensor Status Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <IoSpeedometerSharp className="text-2xl text-purple-500" />
+                <h3 className="text-lg font-medium">Vibration Status</h3>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                latestData.getaran
+                  ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                  : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+              }`}>
+                {latestData.getaran ? 'Detected' : 'Normal'}
+              </div>
+            </div>
+          </div>
 
-        {/* Sensor Averages */}
-        <div className="mt-8 text-white text-center mb-8">
-          <h3 className="text-xl font-bold mb-4">Sensor Averages</h3>
-          <div className="container mx-auto p-4 bg-gray-800 rounded-lg shadow-lg">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Temperature */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoThermometerSharp className="text-red-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Temperature</p>
-                  <div className="flex items-center">
-                    <p>{averages.temperatureAvg}°C</p>
-                  </div>
-                </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <IoAlertCircleSharp className="text-2xl text-yellow-500" />
+                <h3 className="text-lg font-medium">Gas Level</h3>
               </div>
-              {/* Humidity */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoWaterSharp className="text-blue-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Humidity</p>
-                  <div className="flex items-center">
-                    <p>{averages.humidityAvg}%</p>
-                  </div>
-                </div>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                latestData.gas < 51
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                  : latestData.gas < 101
+                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+              }`}>
+                {latestData.gas < 51
+                  ? 'Safe'
+                  : latestData.gas < 101
+                  ? 'Warning'
+                  : 'Danger'}
               </div>
-              {/* Soil Moisture */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoLeafSharp className="text-green-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Soil Moisture</p>
-                  <div className="flex items-center">
-                    <p>{averages.phAvg}</p>
-                  </div>
-                </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <IoLeafSharp className="text-2xl text-green-500" />
+                <h3 className="text-lg font-medium">Soil Moisture</h3>
               </div>
-              {/* Gas Level */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoAlertCircleSharp className="text-yellow-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Gas Level</p>
-                  <div className="flex items-center">
-                    <p>{averages.gasAvg}</p>
-                  </div>
-                </div>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                latestData.ph < 300
+                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                  : latestData.ph < 700
+                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+              }`}>
+                {latestData.ph < 300
+                  ? 'Wet'
+                  : latestData.ph < 700
+                  ? 'Moist'
+                  : 'Dry'}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <IoEyeSharp className="text-2xl text-blue-500" />
+                <h3 className="text-lg font-medium">Object Detection</h3>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                latestData.infrared
+                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
+                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+              }`}>
+                {latestData.infrared ? 'Detected' : 'None'}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Sensor Data */}
-        <div className="p-6 bg-gray-800 rounded-lg shadow-lg mb-8">
-          <h2 className="text-2xl text-white font-bold mb-4 text-center">
-            Sensor Data
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {isConnected && latestData && (
-              <>
-                <div className="p-4 bg-gray-700 rounded-lg shadow-md">
-                  <DataCard
-                    title="Temperature"
-                    value={Number(latestData.temperature || 0).toFixed(2)}
-                    unit="°C"
-                    icon={<IoThermometerSharp className="text-red-500" />}
-                    valueType="gauge"
-                    gaugeValue={Number(latestData.temperature || 0) / 100}
-                    gaugeColors={["#00FF00", "#FFFF00", "#FF0000"]}
-                    trend={
-                      calculateTrend(
-                        latestData.temperature,
-                        originalData[1]?.temperature
-                      ).trend
-                    }
-                    trendPercentage={
-                      calculateTrend(
-                        latestData.temperature,
-                        originalData[1]?.temperature
-                      ).percentage
-                    }
-                  />
+        {/* Filter Controls */}
+        <div className="flex gap-4 mb-6">
+          <button
+            onClick={() => {
+              setFilter("all");
+              filterDataByTime("all");
+            }}
+            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+              filter === "all"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+            }`}
+          >
+            All Time
+          </button>
+          <button
+            onClick={() => {
+              setFilter("24h");
+              filterDataByTime("24h");
+            }}
+            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+              filter === "24h"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+            }`}
+          >
+            Last 24 Hours
+          </button>
+          <button
+            onClick={() => {
+              setFilter("7d");
+              filterDataByTime("7d");
+            }}
+            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+              filter === "7d"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+            }`}
+          >
+            Last 7 Days
+          </button>
+          <button
+            onClick={() => {
+              setFilter("30d");
+              filterDataByTime("30d");
+            }}
+            className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
+              filter === "30d"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+            }`}
+          >
+            Last 30 Days
+          </button>
+        </div>
+
+        {/* Add Export Button */}
+        <div className="mb-4 flex justify-end">
+          <button
+            onClick={handleExport}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Export Data
+          </button>
+        </div>
+
+        {/* Data Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <DataCard
+            title="Temperature"
+            value={latestData.temperature}
+            unit="°C"
+            icon={IoThermometerSharp}
+            trend={trends.temperature.trend}
+            trendPercentage={trends.temperature.change}
+            color="red"
+          />
+          <DataCard
+            title="Humidity"
+            value={latestData.humidity}
+            unit="%"
+            icon={IoWaterSharp}
+            trend={trends.humidity.trend}
+            trendPercentage={trends.humidity.change}
+            color="blue"
+          />
+          <DataCard
+            title="Soil Moisture"
+            value={latestData.ph}
+            status={latestData.ph < 300 ? 'Wet' : latestData.ph < 700 ? 'Moist' : 'Dry'}
+            icon={IoLeafSharp}
+            trend={trends.ph.trend}
+            trendPercentage={trends.ph.change}
+            color="green"
+          />
+          <DataCard
+            title="Gas Level"
+            value={latestData.gas}
+            unit="ppm"
+            status={latestData.gas < 51 ? 'Safe' : latestData.gas < 101 ? 'Warning' : 'Danger'}
+            icon={IoAlertCircleSharp}
+            trend={trends.gas.trend}
+            trendPercentage={trends.gas.change}
+            color="yellow"
+          />
+        </div>
+
+        {/* Averages and Predictions Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AveragesSection />
+          <PredictionsSection />
+        </div>
+
+        {/* Charts Section */}
+        <div className="mt-8 space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Sensor Data Trends</h2>
+              <button
+                onClick={() => setIsChartVisible(!isChartVisible)}
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                {isChartVisible ? "Hide Charts" : "Show Charts"}
+              </button>
+            </div>
+            
+            {isChartVisible && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+                    <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Temperature & Humidity</h3>
+                    <LineChart
+                      labels={chartData.labels}
+                      datasets={[
+                        {
+                          label: "Temperature (°C)",
+                          data: chartData.temperature,
+                          borderColor: "rgba(239, 68, 68, 0.8)",
+                          tension: 0.4,
+                        },
+                        {
+                          label: "Humidity (%)",
+                          data: chartData.humidity,
+                          borderColor: "rgba(59, 130, 246, 0.8)",
+                          tension: 0.4,
+                        },
+                      ]}
+                    />
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
+                    <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Soil Moisture & Gas Levels</h3>
+                    <LineChart
+                      labels={chartData.labels}
+                      datasets={[
+                        {
+                          label: "Soil Moisture",
+                          data: chartData.ph,
+                          borderColor: "rgba(16, 185, 129, 0.8)",
+                          tension: 0.4,
+                        },
+                        {
+                          label: "Gas Level (ppm)",
+                          data: chartData.gas,
+                          borderColor: "rgba(245, 158, 11, 0.8)",
+                          tension: 0.4,
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
-                <div className="p-4 bg-gray-700 rounded-lg shadow-md">
-                  <DataCard
-                    title="Humidity"
-                    value={latestData.humidity || 0}
-                    unit="%"
-                    icon={<IoWaterSharp className="text-blue-500" />}
-                    trend={
-                      calculateTrend(
-                        latestData.humidity,
-                        originalData[1]?.humidity
-                      ).trend
-                    }
-                    trendPercentage={
-                      calculateTrend(
-                        latestData.humidity,
-                        originalData[1]?.humidity
-                      ).percentage
-                    }
-                  />
-                </div>
-                <div className="p-4 bg-gray-700 rounded-lg shadow-md">
-                  <DataCard
-                    title="Soil Moisture Level"
-                    value={
-                      latestData.ph < 300
-                        ? "Wet"
-                        : latestData.ph < 700
-                        ? "Moist"
-                        : "Dry"
-                    }
-                    icon={<IoLeafSharp className="text-green-500" />}
-                  />
-                </div>
-                <div className="p-4 bg-gray-700 rounded-lg shadow-md">
-                  <DataCard
-                    title="Gas Level"
-                    value={
-                      latestData.gas < 51
-                        ? "Safe"
-                        : latestData.gas < 101
-                        ? "Caution"
-                        : latestData.gas < 301
-                        ? "Dangerous"
-                        : "Highly Dangerous"
-                    }
-                    icon={<IoAlertCircleSharp className="text-yellow-500" />}
-                  />
-                </div>
-                <div className="p-4 bg-gray-700 rounded-lg shadow-md">
-                  <DataCard
-                    title="Vibration Status"
-                    value={
-                      latestData.vibration
-                        ? "Vibration Detected"
-                        : "No Vibration"
-                    }
-                    icon={<IoRadioSharp className="text-purple-500" />}
-                  />
-                </div>
-                <div className="p-4 bg-gray-700 rounded-lg shadow-md">
-                  <DataCard
-                    title="Infrared Status"
-                    value={
-                      latestData.infrared ? "Object Detected" : "No Object"
-                    }
-                    icon={<IoEyeSharp className="text-orange-500" />}
-                  />
-                </div>
-              </>
+              </div>
             )}
           </div>
-        </div>
-
-        {/* Predicted Data */}
-        <div className="mt-8 text-white text-center mb-8">
-          <h3 className="text-xl font-bold mb-4">Predicted Sensor Values</h3>
-          <div className="container mx-auto p-4 bg-gray-800 rounded-lg shadow-lg">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Predicted Temperature */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoThermometerSharp className="text-red-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Predicted Temperature</p>
-                  <p>{predictedData.temperature}°C</p>
-                </div>
-              </div>
-              {/* Predicted Humidity */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoWaterSharp className="text-blue-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Predicted Humidity</p>
-                  <p>{predictedData.humidity}%</p>
-                </div>
-              </div>
-              {/* Predicted Soil Moisture */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoLeafSharp className="text-green-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Predicted Soil Moisture</p>
-                  <p>{predictedData.ph}</p>
-                </div>
-              </div>
-              {/* Predicted Gas */}
-              <div className="p-4 bg-gray-700 rounded-lg shadow-md flex items-center">
-                <IoAlertCircleSharp className="text-yellow-500 mr-3 text-3xl" />
-                <div>
-                  <p className="font-semibold">Predicted Gas Level</p>
-                  <p>{predictedData.gas}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Charts and Statistics */}
-        <div className="p-6">
-          <button
-            className="bg-blue-500 text-white p-2 rounded mb-4"
-            onClick={() => setIsChartVisible(!isChartVisible)}
-          >
-            {isChartVisible ? "Hide Charts" : "Show Charts"}
-          </button>
-          {isChartVisible && isConnected && (
-            <div className="flex flex-col lg:flex-row gap-8 mt-8">
-              {/* Left Section with 2 Charts */}
-              <div className="w-full lg:w-1/2 grid grid-cols-1 gap-8">
-                <div>
-                  <h2 className="text-2xl text-white font-bold mb-4">
-                    Data Trend
-                  </h2>
-                  <select
-                    className="bg-gray-800 text-white p-2 rounded mb-4"
-                    value={filter}
-                    onChange={(e) => {
-                      setFilter(e.target.value);
-                      filterDataByTime(e.target.value);
-                    }}
-                  >
-                    <option value="all">All Time</option>
-                    <option value="24h">Last 24 Hours</option>
-                    <option value="7d">Last 7 Days</option>
-                    <option value="30d">Last 30 Days</option>
-                  </select>
-                  <LineChart
-                    labels={chartData.labels}
-                    dataSets={[
-                      {
-                        label: "Temperature",
-                        data: chartData.temperature,
-                        borderColor: "rgba(255, 99, 132, 1)",
-                        backgroundColor: "rgba(255, 99, 132, 0.2)",
-                      },
-                      {
-                        label: "Humidity",
-                        data: chartData.humidity,
-                        borderColor: "rgba(54, 162, 235, 1)",
-                        backgroundColor: "rgba(54, 162, 235, 0.2)",
-                      },
-                    ]}
-                  />
-                </div>
-                <div>
-                  <LineChart
-                    labels={chartData.labels}
-                    dataSets={[
-                      {
-                        label: "Soil Moisture Level",
-                        data: chartData.ph,
-                        borderColor: "rgba(0, 128, 0, 1)",
-                        backgroundColor: "rgba(0, 128, 0, 0.2)",
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              {/* Right Section with 1 Chart and 1 Pie Chart */}
-              <div className="w-full lg:w-1/2 grid grid-cols-1 gap-8">
-                <div>
-                  <h2 className="text-2xl text-white font-bold mb-4">
-                    Gas Level Distribution
-                  </h2>
-                  <PieChart
-                    data={{
-                      labels: [
-                        "Safe",
-                        "Caution",
-                        "Dangerous",
-                        "Highly Dangerous",
-                      ],
-                      datasets: [
-                        {
-                          data: [
-                            latestData.gas < 51 ? 1 : 0,
-                            latestData.gas < 101 && latestData.gas >= 51
-                              ? 1
-                              : 0,
-                            latestData.gas < 301 && latestData.gas >= 101
-                              ? 1
-                              : 0,
-                            latestData.gas >= 301 ? 1 : 0,
-                          ],
-                          backgroundColor: [
-                            "#00FF00",
-                            "#FFFF00",
-                            "#FF0000",
-                            "#FF0000",
-                          ],
-                        },
-                      ],
-                    }}
-                  />
-                </div>
-                <div>
-                  <LineChart
-                    labels={chartData.labels}
-                    dataSets={[
-                      {
-                        label: "Gas Level",
-                        data: chartData.gas,
-                        borderColor: "rgba(255, 165, 0, 1)",
-                        backgroundColor: "rgba(255, 165, 0, 0.2)",
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

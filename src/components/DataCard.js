@@ -1,73 +1,77 @@
-import React from "react";
-import { IoChevronUpOutline, IoChevronDownOutline } from "react-icons/io5";
+"use client";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { IoCaretUpSharp, IoCaretDownSharp } from "react-icons/io5";
 
 const DataCard = ({
   title,
   value,
-  unit = "",
-  valueType = "normal",
-  gaugeValue,
-  gaugeColors,
-  trend = null,
-  trendPercentage = null,
-  icon = null,
+  icon: Icon,
+  trend,
+  trendPercentage,
+  unit = '',
+  color = 'blue',
+  status
 }) => {
-  const renderGauge = () => {
-    if (!gaugeValue || !gaugeColors) return null;
+  const gradients = {
+    blue: 'from-blue-500 to-blue-600',
+    green: 'from-green-500 to-green-600',
+    red: 'from-red-500 to-red-600',
+    yellow: 'from-yellow-500 to-yellow-600',
+    purple: 'from-purple-500 to-purple-600'
+  };
 
-    const fillPercentage = Math.min(Math.max(gaugeValue * 100, 0), 100);
+  const renderTrend = () => {
+    if (!trend || !trendPercentage) return null;
+
+    const isUp = trend === 'up';
+    const TrendIcon = isUp ? IoCaretUpSharp : IoCaretDownSharp;
+    const trendColor = isUp ? 'text-green-300' : 'text-red-300';
+    const bgColor = isUp ? 'bg-green-400/20' : 'bg-red-400/20';
 
     return (
-      <div className="relative w-full h-2 bg-gray-600 rounded-full overflow-hidden mt-2">
-        <div
-          className="absolute top-0 left-0 h-full rounded-full"
-          style={{
-            width: `${fillPercentage}%`,
-            background: `linear-gradient(to right, ${gaugeColors.join(", ")})`,
-          }}
-        ></div>
+      <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${bgColor} ${trendColor}`}>
+        <TrendIcon className="w-4 h-4" />
+        <span className="text-sm font-medium">{trendPercentage}%</span>
       </div>
     );
   };
 
-  const getTrendIcon = () => {
-    if (trend === "up") {
-      return (
-        <div className="flex items-center text-green-500">
-          <IoChevronUpOutline className="mr-1" />
-          {trendPercentage && <span>{trendPercentage}%</span>}
-        </div>
-      );
-    } else if (trend === "down") {
-      return (
-        <div className="flex items-center text-red-500">
-          <IoChevronDownOutline className="mr-1" />
-          {trendPercentage && <span>{trendPercentage}%</span>}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
-    <div className="bg-gray-700 rounded-lg p-4 shadow-md transform transition-all duration-300 hover:scale-105">
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex items-center">
-          {icon && React.cloneElement(icon, { className: "mr-2 text-2xl" })}
-          <h3 className="text-white font-semibold">{title}</h3>
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.2 }}
+      className="relative overflow-hidden rounded-xl bg-gradient-to-br shadow-lg"
+      style={{
+        background: `linear-gradient(135deg, var(--${color}-500) 0%, var(--${color}-600) 100%)`
+      }}
+    >
+      <div className="px-6 py-6 relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            {Icon && <Icon className="h-8 w-8 text-white opacity-80" />}
+            <h3 className="text-lg font-medium text-white opacity-90">{title}</h3>
+          </div>
         </div>
-        {getTrendIcon()}
-      </div>
-      <div className="flex justify-between items-center">
-        <div>
-          <p className="text-white text-xl font-bold">
-            {value}
-            {unit}
-          </p>
+
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <p className="text-3xl font-bold text-white">
+              {typeof value === 'number' ? value.toFixed(2) : value}
+              <span className="ml-1 text-lg">{unit}</span>
+            </p>
+            {renderTrend()}
+          </div>
+
+          {status && (
+            <div className="inline-flex items-center px-2.5 py-1 rounded-full text-sm font-medium bg-white/20 text-white w-fit">
+              {status}
+            </div>
+          )}
         </div>
       </div>
-      {valueType === "gauge" && renderGauge()}
-    </div>
+      <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-white/5 to-transparent"></div>
+    </motion.div>
   );
 };
 
