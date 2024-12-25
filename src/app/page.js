@@ -32,24 +32,25 @@ export default function Page() {
   const [apiUrl, setApiUrl] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [averages, setAverages] = useState({
-    temperature: '0',
-    humidity: '0',
-    soil: '0',
-    gas: '0'
+    temperature: "0",
+    humidity: "0",
+    soil: "0",
+    gas: "0",
   });
   const [isChartVisible, setIsChartVisible] = useState(true);
   const [predictedData, setPredictedData] = useState({
     temperature: 0,
     humidity: 0,
     ph: 0,
-    gas: 0
+    gas: 0,
   });
   const [trends, setTrends] = useState({
     temperature: { trend: null, change: 0 },
     humidity: { trend: null, change: 0 },
     ph: { trend: null, change: 0 },
-    gas: { trend: null, change: 0 }
+    gas: { trend: null, change: 0 },
   });
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const fetchData = async () => {
     if (!apiUrl) return;
@@ -112,15 +113,15 @@ export default function Page() {
     }
     const change = ((current - previous) / previous) * 100;
     return {
-      trend: change > 0 ? 'up' : change < 0 ? 'down' : null,
-      change: Math.abs(change).toFixed(1)
+      trend: change > 0 ? "up" : change < 0 ? "down" : null,
+      change: Math.abs(change).toFixed(1),
     };
   };
 
   const filterDataByTime = (filter) => {
     const now = new Date();
     let filteredData = originalData;
-    
+
     if (filter === "24h") {
       filteredData = originalData.filter(
         (item) => now - new Date(item.timestamp) <= 24 * 60 * 60 * 1000
@@ -137,7 +138,7 @@ export default function Page() {
 
     // Update chart data
     updateChartData(filteredData);
-    
+
     // Update latest data with the most recent filtered entry
     if (filteredData.length > 0) {
       const sortedData = [...filteredData].sort(
@@ -154,10 +155,10 @@ export default function Page() {
 
     // Calculate trends for filtered data
     if (filteredData.length >= 2) {
-      const tempData = filteredData.map(d => d.temperature);
-      const humData = filteredData.map(d => d.humidity);
-      const soilData = filteredData.map(d => d.ph);
-      const gasData = filteredData.map(d => d.gas);
+      const tempData = filteredData.map((d) => d.temperature);
+      const humData = filteredData.map((d) => d.humidity);
+      const soilData = filteredData.map((d) => d.ph);
+      const gasData = filteredData.map((d) => d.gas);
 
       setPredictedData({
         temperature: predictFutureData(tempData),
@@ -182,10 +183,10 @@ export default function Page() {
 
   useEffect(() => {
     if (originalData.length >= 2) {
-      const tempData = originalData.map(d => d.temperature);
-      const humData = originalData.map(d => d.humidity);
-      const soilData = originalData.map(d => d.ph);
-      const gasData = originalData.map(d => d.gas);
+      const tempData = originalData.map((d) => d.temperature);
+      const humData = originalData.map((d) => d.humidity);
+      const soilData = originalData.map((d) => d.ph);
+      const gasData = originalData.map((d) => d.gas);
 
       setPredictedData({
         temperature: predictFutureData(tempData),
@@ -201,10 +202,18 @@ export default function Page() {
     if (!data || data.length === 0) return null;
 
     return {
-      temperature: (data.reduce((sum, item) => sum + item.temperature, 0) / data.length).toFixed(2),
-      humidity: (data.reduce((sum, item) => sum + item.humidity, 0) / data.length).toFixed(2),
-      soil: (data.reduce((sum, item) => sum + item.ph, 0) / data.length).toFixed(2),
-      gas: (data.reduce((sum, item) => sum + item.gas, 0) / data.length).toFixed(2)
+      temperature: (
+        data.reduce((sum, item) => sum + item.temperature, 0) / data.length
+      ).toFixed(2),
+      humidity: (
+        data.reduce((sum, item) => sum + item.humidity, 0) / data.length
+      ).toFixed(2),
+      soil: (
+        data.reduce((sum, item) => sum + item.ph, 0) / data.length
+      ).toFixed(2),
+      gas: (
+        data.reduce((sum, item) => sum + item.gas, 0) / data.length
+      ).toFixed(2),
     };
   };
 
@@ -244,7 +253,7 @@ export default function Page() {
         temperature: calculateChange(current.temperature, previous.temperature),
         humidity: calculateChange(current.humidity, previous.humidity),
         ph: calculateChange(current.ph, previous.ph),
-        gas: calculateChange(current.gas, previous.gas)
+        gas: calculateChange(current.gas, previous.gas),
       });
     }
   }, [originalData]);
@@ -252,6 +261,21 @@ export default function Page() {
   useEffect(() => {
     setIsChartVisible(true);
   }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedTime = currentTime.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 
   const AveragesSection = () => (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
@@ -262,10 +286,12 @@ export default function Page() {
         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
           <div className="flex items-center space-x-2">
             <IoThermometerSharp className="text-red-500 text-xl" />
-            <span className="text-gray-600 dark:text-gray-300">Temperature</span>
+            <span className="text-gray-600 dark:text-gray-300">
+              Temperature
+            </span>
           </div>
           <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {averages?.temperature || '0'} °C
+            {averages?.temperature || "0"} °C
           </p>
         </div>
         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
@@ -274,16 +300,18 @@ export default function Page() {
             <span className="text-gray-600 dark:text-gray-300">Humidity</span>
           </div>
           <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {averages?.humidity || '0'} %
+            {averages?.humidity || "0"} %
           </p>
         </div>
         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
           <div className="flex items-center space-x-2">
             <IoLeafSharp className="text-green-500 text-xl" />
-            <span className="text-gray-600 dark:text-gray-300">Soil Moisture</span>
+            <span className="text-gray-600 dark:text-gray-300">
+              Soil Moisture
+            </span>
           </div>
           <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {averages?.soil || '0'}
+            {averages?.soil || "0"}
           </p>
         </div>
         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
@@ -292,7 +320,7 @@ export default function Page() {
             <span className="text-gray-600 dark:text-gray-300">Gas Level</span>
           </div>
           <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {averages?.gas || '0'} ppm
+            {averages?.gas || "0"} ppm
           </p>
         </div>
       </div>
@@ -308,10 +336,15 @@ export default function Page() {
         <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
           <div className="flex items-center space-x-2">
             <IoThermometerSharp className="text-red-500 text-xl" />
-            <span className="text-gray-600 dark:text-gray-300">Temperature</span>
+            <span className="text-gray-600 dark:text-gray-300">
+              Temperature
+            </span>
           </div>
           <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {predictedData?.temperature ? predictedData.temperature.toFixed(2) : '0'} °C
+            {predictedData?.temperature
+              ? predictedData.temperature.toFixed(2)
+              : "0"}{" "}
+            °C
           </p>
         </div>
         <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
@@ -320,16 +353,19 @@ export default function Page() {
             <span className="text-gray-600 dark:text-gray-300">Humidity</span>
           </div>
           <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {predictedData?.humidity ? predictedData.humidity.toFixed(2) : '0'} %
+            {predictedData?.humidity ? predictedData.humidity.toFixed(2) : "0"}{" "}
+            %
           </p>
         </div>
         <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
           <div className="flex items-center space-x-2">
             <IoLeafSharp className="text-green-500 text-xl" />
-            <span className="text-gray-600 dark:text-gray-300">Soil Moisture</span>
+            <span className="text-gray-600 dark:text-gray-300">
+              Soil Moisture
+            </span>
           </div>
           <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {predictedData?.ph ? predictedData.ph.toFixed(2) : '0'}
+            {predictedData?.ph ? predictedData.ph.toFixed(2) : "0"}
           </p>
         </div>
         <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
@@ -338,7 +374,7 @@ export default function Page() {
             <span className="text-gray-600 dark:text-gray-300">Gas Level</span>
           </div>
           <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {predictedData?.gas ? predictedData.gas.toFixed(2) : '0'} ppm
+            {predictedData?.gas ? predictedData.gas.toFixed(2) : "0"} ppm
           </p>
         </div>
       </div>
@@ -348,35 +384,44 @@ export default function Page() {
   // Add export function
   const exportToCSV = (data, filename) => {
     // Define CSV headers
-    const headers = ['Timestamp', 'Temperature', 'Humidity', 'pH', 'Gas', 'Getaran'];
-    
+    const headers = [
+      "Timestamp",
+      "Temperature",
+      "Humidity",
+      "pH",
+      "Gas",
+      "Getaran",
+    ];
+
     // Convert data to CSV format with proper timestamp handling
-    const csvData = data.map(row => {
+    const csvData = data.map((row) => {
       const timestamp = new Date(row.timestamp);
       const formattedDate = `${timestamp.toLocaleDateString()} ${timestamp.toLocaleTimeString()}`;
       return [
         `"${formattedDate}"`, // Wrap timestamp in quotes to handle commas
-        row.temperature || '0',
-        row.humidity || '0',
-        row.ph || '0',
-        row.gas || '0',
-        row.getaran === 0 ? 'false' : row.getaran || 'false' // Convert 0 to "false" for getaran
+        row.temperature || "0",
+        row.humidity || "0",
+        row.ph || "0",
+        row.gas || "0",
+        row.getaran === 0 ? "false" : row.getaran || "false", // Convert 0 to "false" for getaran
       ];
     });
-    
+
     // Combine headers and data
     const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => row.join(','))
-    ].join('\n');
-    
+      headers.join(","),
+      ...csvData.map((row) => row.join(",")),
+    ].join("\n");
+
     // Create download link
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' }); // Add BOM for Excel
-    const link = document.createElement('a');
+    const blob = new Blob(["\ufeff" + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    }); // Add BOM for Excel
+    const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${filename}.csv`);
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${filename}.csv`);
+    link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -384,27 +429,27 @@ export default function Page() {
 
   // Add export button handler
   const handleExport = () => {
-    const currentDate = new Date().toLocaleDateString().replace(/\//g, '-');
+    const currentDate = new Date().toLocaleDateString().replace(/\//g, "-");
     let dataToExport = originalData;
-    
+
     // If a filter is active, export only filtered data
-    if (filter !== 'all') {
+    if (filter !== "all") {
       const now = new Date();
-      if (filter === '24h') {
+      if (filter === "24h") {
         dataToExport = originalData.filter(
           (item) => now - new Date(item.timestamp) <= 24 * 60 * 60 * 1000
         );
-      } else if (filter === '7d') {
+      } else if (filter === "7d") {
         dataToExport = originalData.filter(
           (item) => now - new Date(item.timestamp) <= 7 * 24 * 60 * 60 * 1000
         );
-      } else if (filter === '30d') {
+      } else if (filter === "30d") {
         dataToExport = originalData.filter(
           (item) => now - new Date(item.timestamp) <= 30 * 24 * 60 * 60 * 1000
         );
       }
     }
-    
+
     exportToCSV(dataToExport, `sensor_data_${currentDate}`);
   };
 
@@ -414,11 +459,37 @@ export default function Page() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">IoT Research Mining Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Real-time monitoring and analysis</p>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
+              IoT Research Mining Dashboard
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Real-time monitoring and analysis
+            </p>
           </div>
-          
+
           <div className="flex items-center gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl px-6 py-3 shadow-lg">
+              <div className="flex items-center gap-3">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-blue-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span className="font-mono text-xl text-gray-700 dark:text-gray-200">
+                  {formattedTime}
+                </span>
+              </div>
+            </div>
+
             <div className="flex items-center space-x-2">
               <input
                 type="text"
@@ -434,10 +505,16 @@ export default function Page() {
                 Connect
               </button>
             </div>
-            <div className={`flex items-center ${isConnected ? 'text-green-500' : 'text-red-500'}`}>
-              <div className="w-3 h-3 rounded-full mr-2 animate-pulse" 
-                style={{ backgroundColor: isConnected ? '#10B981' : '#EF4444' }} />
-              {isConnected ? 'Connected' : 'Disconnected'}
+            <div
+              className={`flex items-center ${
+                isConnected ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              <div
+                className="w-3 h-3 rounded-full mr-2 animate-pulse"
+                style={{ backgroundColor: isConnected ? "#10B981" : "#EF4444" }}
+              />
+              {isConnected ? "Connected" : "Disconnected"}
             </div>
           </div>
         </div>
@@ -450,12 +527,14 @@ export default function Page() {
                 <IoSpeedometerSharp className="text-2xl text-purple-500" />
                 <h3 className="text-lg font-medium">Vibration Status</h3>
               </div>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                latestData.getaran
-                  ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                  : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-              }`}>
-                {latestData.getaran ? 'Detected' : 'Normal'}
+              <div
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  latestData.getaran
+                    ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                    : "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                }`}
+              >
+                {latestData.getaran ? "Detected" : "Normal"}
               </div>
             </div>
           </div>
@@ -466,18 +545,20 @@ export default function Page() {
                 <IoAlertCircleSharp className="text-2xl text-yellow-500" />
                 <h3 className="text-lg font-medium">Gas Level</h3>
               </div>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                latestData.gas < 51
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                  : latestData.gas < 101
-                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                  : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-              }`}>
+              <div
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  latestData.gas < 51
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : latestData.gas < 101
+                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                }`}
+              >
                 {latestData.gas < 51
-                  ? 'Safe'
+                  ? "Safe"
                   : latestData.gas < 101
-                  ? 'Warning'
-                  : 'Danger'}
+                  ? "Warning"
+                  : "Danger"}
               </div>
             </div>
           </div>
@@ -488,18 +569,20 @@ export default function Page() {
                 <IoLeafSharp className="text-2xl text-green-500" />
                 <h3 className="text-lg font-medium">Soil Moisture</h3>
               </div>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                latestData.ph < 300
-                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                  : latestData.ph < 700
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-              }`}>
+              <div
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  latestData.ph < 300
+                    ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                    : latestData.ph < 700
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                }`}
+              >
                 {latestData.ph < 300
-                  ? 'Wet'
+                  ? "Wet"
                   : latestData.ph < 700
-                  ? 'Moist'
-                  : 'Dry'}
+                  ? "Moist"
+                  : "Dry"}
               </div>
             </div>
           </div>
@@ -510,12 +593,14 @@ export default function Page() {
                 <IoEyeSharp className="text-2xl text-blue-500" />
                 <h3 className="text-lg font-medium">Object Detection</h3>
               </div>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                latestData.infrared
-                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400'
-                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-              }`}>
-                {latestData.infrared ? 'Detected' : 'None'}
+              <div
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  latestData.infrared
+                    ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                    : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {latestData.infrared ? "Detected" : "None"}
               </div>
             </div>
           </div>
@@ -610,7 +695,13 @@ export default function Page() {
           <DataCard
             title="Soil Moisture"
             value={latestData.ph}
-            status={latestData.ph < 300 ? 'Wet' : latestData.ph < 700 ? 'Moist' : 'Dry'}
+            status={
+              latestData.ph < 300
+                ? "Wet"
+                : latestData.ph < 700
+                ? "Moist"
+                : "Dry"
+            }
             icon={IoLeafSharp}
             trend={trends.ph.trend}
             trendPercentage={trends.ph.change}
@@ -620,7 +711,13 @@ export default function Page() {
             title="Gas Level"
             value={latestData.gas}
             unit="ppm"
-            status={latestData.gas < 51 ? 'Safe' : latestData.gas < 101 ? 'Warning' : 'Danger'}
+            status={
+              latestData.gas < 51
+                ? "Safe"
+                : latestData.gas < 101
+                ? "Warning"
+                : "Danger"
+            }
             icon={IoAlertCircleSharp}
             trend={trends.gas.trend}
             trendPercentage={trends.gas.change}
@@ -638,7 +735,9 @@ export default function Page() {
         <div className="mt-8 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Sensor Data Trends</h2>
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                Sensor Data Trends
+              </h2>
               <button
                 onClick={() => setIsChartVisible(!isChartVisible)}
                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
@@ -646,12 +745,14 @@ export default function Page() {
                 {isChartVisible ? "Hide Charts" : "Show Charts"}
               </button>
             </div>
-            
+
             {isChartVisible && (
               <div className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Temperature & Humidity</h3>
+                    <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
+                      Temperature & Humidity
+                    </h3>
                     <LineChart
                       labels={chartData.labels}
                       datasets={[
@@ -671,7 +772,9 @@ export default function Page() {
                     />
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">Soil Moisture & Gas Levels</h3>
+                    <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
+                      Soil Moisture & Gas Levels
+                    </h3>
                     <LineChart
                       labels={chartData.labels}
                       datasets={[
