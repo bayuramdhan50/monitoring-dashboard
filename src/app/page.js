@@ -16,14 +16,12 @@ export default function Page() {
   const [latestData, setLatestData] = useState({
     temperature: 0,
     humidity: 0,
-    ph: 0,
     gas: 0,
     getaran: 0,
   });
   const [chartData, setChartData] = useState({
     humidity: [],
     temperature: [],
-    ph: [],
     gas: [],
     labels: [],
   });
@@ -34,20 +32,17 @@ export default function Page() {
   const [averages, setAverages] = useState({
     temperature: "0",
     humidity: "0",
-    soil: "0",
     gas: "0",
   });
   const [isChartVisible, setIsChartVisible] = useState(true);
   const [predictedData, setPredictedData] = useState({
     temperature: 0,
     humidity: 0,
-    ph: 0,
     gas: 0,
   });
   const [trends, setTrends] = useState({
     temperature: { trend: null, change: 0 },
     humidity: { trend: null, change: 0 },
-    ph: { trend: null, change: 0 },
     gas: { trend: null, change: 0 },
   });
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -77,7 +72,6 @@ export default function Page() {
       );
       const humidityData = sortedData.map((item) => item.humidity || 0);
       const temperatureData = sortedData.map((item) => item.temperature || 0);
-      const phData = sortedData.map((item) => item.ph || 0);
       const gasData = sortedData.map((item) => item.gas || 0);
       const labelsData = sortedData.map((item) =>
         new Date(item.timestamp).toISOString()
@@ -86,7 +80,6 @@ export default function Page() {
       setChartData({
         humidity: humidityData,
         temperature: temperatureData,
-        ph: phData,
         gas: gasData,
         labels: labelsData,
       });
@@ -157,13 +150,11 @@ export default function Page() {
     if (filteredData.length >= 2) {
       const tempData = filteredData.map((d) => d.temperature);
       const humData = filteredData.map((d) => d.humidity);
-      const soilData = filteredData.map((d) => d.ph);
       const gasData = filteredData.map((d) => d.gas);
 
       setPredictedData({
         temperature: predictFutureData(tempData),
         humidity: predictFutureData(humData),
-        ph: predictFutureData(soilData),
         gas: predictFutureData(gasData),
       });
     }
@@ -185,13 +176,11 @@ export default function Page() {
     if (originalData.length >= 2) {
       const tempData = originalData.map((d) => d.temperature);
       const humData = originalData.map((d) => d.humidity);
-      const soilData = originalData.map((d) => d.ph);
       const gasData = originalData.map((d) => d.gas);
 
       setPredictedData({
         temperature: predictFutureData(tempData),
         humidity: predictFutureData(humData),
-        ph: predictFutureData(soilData),
         gas: predictFutureData(gasData),
       });
     }
@@ -207,9 +196,6 @@ export default function Page() {
       ).toFixed(2),
       humidity: (
         data.reduce((sum, item) => sum + item.humidity, 0) / data.length
-      ).toFixed(2),
-      soil: (
-        data.reduce((sum, item) => sum + item.ph, 0) / data.length
       ).toFixed(2),
       gas: (
         data.reduce((sum, item) => sum + item.gas, 0) / data.length
@@ -252,7 +238,6 @@ export default function Page() {
       setTrends({
         temperature: calculateChange(current.temperature, previous.temperature),
         humidity: calculateChange(current.humidity, previous.humidity),
-        ph: calculateChange(current.ph, previous.ph),
         gas: calculateChange(current.gas, previous.gas),
       });
     }
@@ -305,17 +290,6 @@ export default function Page() {
         </div>
         <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
           <div className="flex items-center space-x-2">
-            <IoLeafSharp className="text-green-500 text-xl" />
-            <span className="text-gray-600 dark:text-gray-300">
-              Soil Moisture
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {averages?.soil || "0"}
-          </p>
-        </div>
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-          <div className="flex items-center space-x-2">
             <IoAlertCircleSharp className="text-yellow-500 text-xl" />
             <span className="text-gray-600 dark:text-gray-300">Gas Level</span>
           </div>
@@ -359,17 +333,6 @@ export default function Page() {
         </div>
         <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
           <div className="flex items-center space-x-2">
-            <IoLeafSharp className="text-green-500 text-xl" />
-            <span className="text-gray-600 dark:text-gray-300">
-              Soil Moisture
-            </span>
-          </div>
-          <p className="text-2xl font-bold text-gray-800 dark:text-white mt-2">
-            {predictedData?.ph ? predictedData.ph.toFixed(2) : "0"}
-          </p>
-        </div>
-        <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
-          <div className="flex items-center space-x-2">
             <IoAlertCircleSharp className="text-yellow-500 text-xl" />
             <span className="text-gray-600 dark:text-gray-300">Gas Level</span>
           </div>
@@ -384,14 +347,7 @@ export default function Page() {
   // Add export function
   const exportToCSV = (data, filename) => {
     // Define CSV headers
-    const headers = [
-      "Timestamp",
-      "Temperature",
-      "Humidity",
-      "pH",
-      "Gas",
-      "Getaran",
-    ];
+    const headers = ["Timestamp", "Temperature", "Humidity", "Gas", "Getaran"];
 
     // Convert data to CSV format with proper timestamp handling
     const csvData = data.map((row) => {
@@ -401,7 +357,6 @@ export default function Page() {
         `"${formattedDate}"`, // Wrap timestamp in quotes to handle commas
         row.temperature || "0",
         row.humidity || "0",
-        row.ph || "0",
         row.gas || "0",
         row.getaran === 0 ? "false" : row.getaran || "false", // Convert 0 to "false" for getaran
       ];
@@ -520,7 +475,7 @@ export default function Page() {
         </div>
 
         {/* Sensor Status Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 max-w-4xl mx-auto">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -559,30 +514,6 @@ export default function Page() {
                   : latestData.gas < 101
                   ? "Warning"
                   : "Danger"}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <IoLeafSharp className="text-2xl text-green-500" />
-                <h3 className="text-lg font-medium">Soil Moisture</h3>
-              </div>
-              <div
-                className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  latestData.ph < 300
-                    ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-                    : latestData.ph < 700
-                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                    : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                }`}
-              >
-                {latestData.ph < 300
-                  ? "Wet"
-                  : latestData.ph < 700
-                  ? "Moist"
-                  : "Dry"}
               </div>
             </div>
           </div>
@@ -673,7 +604,7 @@ export default function Page() {
         </div>
 
         {/* Data Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
           <DataCard
             title="Temperature"
             value={latestData.temperature}
@@ -691,21 +622,6 @@ export default function Page() {
             trend={trends.humidity.trend}
             trendPercentage={trends.humidity.change}
             color="blue"
-          />
-          <DataCard
-            title="Soil Moisture"
-            value={latestData.ph}
-            status={
-              latestData.ph < 300
-                ? "Wet"
-                : latestData.ph < 700
-                ? "Moist"
-                : "Dry"
-            }
-            icon={IoLeafSharp}
-            trend={trends.ph.trend}
-            trendPercentage={trends.ph.change}
-            color="green"
           />
           <DataCard
             title="Gas Level"
@@ -773,17 +689,11 @@ export default function Page() {
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
                     <h3 className="text-lg font-medium text-gray-800 dark:text-white mb-4">
-                      Soil Moisture & Gas Levels
+                      Gas Levels
                     </h3>
                     <LineChart
                       labels={chartData.labels}
                       datasets={[
-                        {
-                          label: "Soil Moisture",
-                          data: chartData.ph,
-                          borderColor: "rgba(16, 185, 129, 0.8)",
-                          tension: 0.4,
-                        },
                         {
                           label: "Gas Level (ppm)",
                           data: chartData.gas,
